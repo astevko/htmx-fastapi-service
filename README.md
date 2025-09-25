@@ -143,6 +143,9 @@ The application will be available at:
 ### Docker Commands
 
 ```bash
+# Validate Docker setup
+./scripts/validate-docker.sh
+
 # Build the image
 docker build -t htmx-fastapi-service .
 
