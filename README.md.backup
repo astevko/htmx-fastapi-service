@@ -1,8 +1,8 @@
 # HTMX FastAPI Service
 
-[![Docker Build and Test](https://github.com/astevko/htmx-fastapi-service/actions/workflows/docker-test.yml/badge.svg)](https://github.com/astevko/htmx-fastapi-service/actions/workflows/docker-test.yml)
+[![Docker Build and Test](https://github.com/andrewstevko/htmx-fastapi-service/actions/workflows/docker-test.yml/badge.svg)](https://github.com/andrewstevko/htmx-fastapi-service/actions/workflows/docker-test.yml)
 [![Docker Hub](https://img.shields.io/docker/v/andystevko/htmx-fastapi-service?label=docker%20hub)](https://hub.docker.com/r/andystevko/htmx-fastapi-service)
-[![GitHub Container Registry](https://img.shields.io/badge/GHCR-available-blue)](https://github.com/astevko/htmx-fastapi-service/pkgs/container/htmx-fastapi-service)
+[![GitHub Container Registry](https://img.shields.io/badge/GHCR-available-blue)](https://github.com/andrewstevko/htmx-fastapi-service/pkgs/container/htmx-fastapi-service)
 
 A modern web application built with FastAPI and HTMX, demonstrating server-side rendering with dynamic interactions.
 
@@ -209,7 +209,7 @@ This project includes automated CI/CD workflows for building and publishing Dock
 docker pull andystevko/htmx-fastapi-service:latest
 
 # GitHub Container Registry
-docker pull ghcr.io/astevko/htmx-fastapi-service:latest
+docker pull ghcr.io/andystevko/htmx-fastapi-service:latest
 ```
 
 For detailed setup instructions, see [.github/README.md](.github/README.md).

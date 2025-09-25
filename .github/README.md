@@ -36,6 +36,8 @@ This repository includes several GitHub Actions workflows for building, testing,
 
 ### For Docker Hub Publishing
 
+**Note**: Your GitHub username and Docker Hub username can be different. The workflows are configured to use `andystevko` as the Docker Hub username.
+
 1. **Create Docker Hub Account**: Sign up at [hub.docker.com](https://hub.docker.com)
 
 2. **Create Access Token**:
@@ -46,7 +48,7 @@ This repository includes several GitHub Actions workflows for building, testing,
 3. **Add Secrets to GitHub Repository**:
    - Go to your GitHub repository → Settings → Secrets and variables → Actions
    - Add the following secrets:
-     - `DOCKER_USERNAME`: Your Docker Hub username
+     - `DOCKER_USERNAME`: `andystevko` (your Docker Hub username)
      - `DOCKER_TOKEN`: Your Docker Hub access token
 
 ### For GitHub Container Registry
