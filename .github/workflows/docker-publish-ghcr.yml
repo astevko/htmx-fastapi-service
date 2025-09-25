@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: andystevko/htmx-fastapi-service
+  IMAGE_NAME: astevko/htmx-fastapi-service
   GITHUB_REPO: ${{ github.repository }}
 
 jobs:

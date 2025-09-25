@@ -41,6 +41,7 @@ async def home(request: Request):
 
 @app.post("/api/message", response_class=HTMLResponse)
 async def create_message(request: Request, message: str = Form(...), user_timezone: str = Form("UTC")):
+    # TODO create message in database
     logger.debug(f"Posting message with timezone: {user_timezone} and message: {message}")
     """HTMX endpoint to create a message"""
     now = datetime.now(timezone.utc)
@@ -56,7 +57,8 @@ async def create_message(request: Request, message: str = Form(...), user_timezo
 async def get_messages(request: Request, user_timezone: str = Query("UTC")):
     logger.debug(f"Getting messages with timezone: {user_timezone}")
     """HTMX endpoint to get all messages"""
-    # Sample messages with actual timestamps
+    # TODO replace with persistent messages
+    # TODO add pagination
     now = datetime.now(timezone.utc)
     messages = [
         {
