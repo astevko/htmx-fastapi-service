@@ -1,0 +1,44 @@
+/* HTMX FastAPI Service - Custom Styles */
+
+/* Ensure proper spacing for timezone info */
+.timezone-info {
+    margin-bottom: 1rem;
+}
+
+/* Loading states for HTMX */
+.htmx-request {
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+}
+
+/* Message container animations */
+#messages-container {
+    transition: all 0.3s ease;
+}
+
+/* Form styling improvements */
+form input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Button hover effects */
+button {
+    transition: all 0.2s ease;
+}
+
+button:hover {
+    transform: translateY(-1px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .max-w-2xl {
+        max-width: 100%;
+    }
+}

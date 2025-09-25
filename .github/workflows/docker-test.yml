@@ -34,9 +34,26 @@ jobs:
         echo "Starting container..."
         docker run -d --name test-container -p 8000:8000 htmx-fastapi-service:test
         
-        # Wait for the container to start
+        # Wait for the container to start and check logs
         echo "Waiting for container to start..."
-        sleep 90
+        sleep 10
+        
+        # Check container status and logs
+        echo "Container status:"
+        docker ps -a --filter name=test-container
+        
+        echo "Container logs:"
+        docker logs test-container
+        
+        # Wait a bit more for the application to fully start
+        sleep 80
+        
+        # Check if container is still running
+        if ! docker ps --filter name=test-container --filter status=running | grep -q test-container; then
+          echo "❌ Container is not running!"
+          docker logs test-container
+          exit 1
+        fi
         
         # Test the health endpoint
         echo "Testing health endpoint..."
@@ -49,6 +66,11 @@ jobs:
         # Test with timezone parameter
         echo "Testing timezone functionality..."
         curl -f "http://localhost:8000/api/messages?user_timezone=America/New_York" || exit 1
+        
+        # Test static files
+        echo "Testing static files..."
+        curl -f http://localhost:8000/static/js/timezone.js || exit 1
+        curl -f http://localhost:8000/static/css/style.css || exit 1
         
         # Clean up
         echo "Cleaning up..."
