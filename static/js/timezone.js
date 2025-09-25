@@ -1,6 +1,6 @@
 // HTMX FastAPI Service - Timezone Detection and Configuration
 // This script handles browser timezone detection and HTMX configuration
-
+// TODO switch from GET parameter to cookie for automatic submit
 (function () {
     'use strict';
 

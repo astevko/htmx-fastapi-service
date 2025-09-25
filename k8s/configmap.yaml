@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: htmx-fastapi-config
+  namespace: htmx-fastapi
+  labels:
+    app: htmx-fastapi-service
+data:
+  # Application configuration
+  PYTHONPATH: "/app"
+  PYTHONUNBUFFERED: "1"
+  
+  # Logging configuration
+  LOG_LEVEL: "INFO"
+  
+  # Server configuration
+  HOST: "0.0.0.0"
+  PORT: "8000"

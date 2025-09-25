@@ -214,6 +214,44 @@ docker pull ghcr.io/astevko/htmx-fastapi-service:latest
 
 For detailed setup instructions, see [.github/README.md](.github/README.md).
 
+## Kubernetes Deployment
+
+Deploy to Kubernetes (Docker Desktop) with the included manifests:
+
+### Quick Start
+
+```bash
+# Deploy with NodePort (accessible on localhost:30080)
+cd k8s
+./deploy.sh
+# Choose option 2
+
+# Access the application
+open http://localhost:30080
+```
+
+### Manual Deployment
+
+```bash
+# Create namespace and deploy
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service-nodeport.yaml
+
+# Access at http://localhost:30080
+```
+
+### Features
+
+- **2 replicas** for high availability
+- **Health checks** with liveness and readiness probes
+- **Resource limits** and security context
+- **Multiple access methods**: NodePort, ClusterIP, Ingress
+- **Easy cleanup** with provided scripts
+
+For detailed Kubernetes deployment instructions, see [k8s/README.md](k8s/README.md).
+
 ## License
 
 This project is open source and available under the [MIT License](LICENSE).
