@@ -36,7 +36,7 @@ jobs:
         
         # Wait for the container to start
         echo "Waiting for container to start..."
-        sleep 15
+        sleep 90
         
         # Test the health endpoint
         echo "Testing health endpoint..."
