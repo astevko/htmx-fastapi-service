@@ -32,6 +32,14 @@ This repository includes several GitHub Actions workflows for building, testing,
   - Security scanning
   - Uses GitHub token for authentication
 
+### 4. Security Scan (`security-scan.yml`)
+- **Triggers**: Weekly schedule, Manual dispatch
+- **Purpose**: Comprehensive security scanning
+- **Features**:
+  - Vulnerability scanning with Trivy
+  - Results uploaded to GitHub Security tab
+  - Non-blocking (won't fail the workflow)
+
 ## Setup Instructions
 
 ### For Docker Hub Publishing
@@ -82,15 +90,18 @@ docker pull andystevko/htmx-fastapi-service:v1.0.0
 
 **GitHub Container Registry**:
 ```bash
-docker pull ghcr.io/andystevko/htmx-fastapi-service:latest
-docker pull ghcr.io/andystevko/htmx-fastapi-service:v1.0.0
+docker pull ghcr.io/astevko/htmx-fastapi-service:latest
+docker pull ghcr.io/astevko/htmx-fastapi-service:v1.0.0
 ```
 
 ### Running Images
 
 ```bash
-# Run with default settings
+# Run with default settings (Docker Hub)
 docker run -p 8000:8000 andystevko/htmx-fastapi-service:latest
+
+# Run with default settings (GitHub Container Registry)
+docker run -p 8000:8000 ghcr.io/astevko/htmx-fastapi-service:latest
 
 # Run with environment variables
 docker run -p 8000:8000 -e PYTHONPATH=/app andystevko/htmx-fastapi-service:latest
@@ -103,6 +114,16 @@ docker run -p 8000:8000 -e PYTHONPATH=/app andystevko/htmx-fastapi-service:lates
 1. **Build Failures**: Check the Actions logs for specific error messages
 2. **Authentication Errors**: Verify Docker Hub credentials are correct
 3. **Permission Errors**: Ensure repository has proper permissions for packages
+
+### Security Scanning Issues
+
+If you see "Resource not accessible by integration" errors with SARIF uploads:
+
+1. **Enable Code Scanning**: Go to repository Settings → Security → Code scanning → Set up code scanning
+2. **Check Permissions**: Ensure the workflow has `security-events: write` permission
+3. **Alternative**: Use the dedicated `security-scan.yml` workflow for comprehensive scanning
+
+The security scanning is set to `continue-on-error: true` so it won't block your Docker builds.
 
 ### Manual Testing
 

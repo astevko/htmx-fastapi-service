@@ -205,10 +205,10 @@ This project includes automated CI/CD workflows for building and publishing Dock
 ### Pulling Images
 
 ```bash
-# Docker Hub
+# Docker Hub (uses Docker Hub username: andystevko)
 docker pull andystevko/htmx-fastapi-service:latest
 
-# GitHub Container Registry
+# GitHub Container Registry (uses GitHub username: astevko)
 docker pull ghcr.io/astevko/htmx-fastapi-service:latest
 ```
 
