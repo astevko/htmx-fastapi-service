@@ -106,6 +106,68 @@ uv run isort .
 - [uv](https://docs.astral.sh/uv/) - Python package manager
 - [Uvicorn](https://www.uvicorn.org/) - ASGI server
 
+## Docker Deployment
+
+### Development Mode
+
+Run the application in development mode with hot reloading:
+
+```bash
+# Using Docker Compose
+docker-compose up --build
+
+# Or using the convenience script
+./scripts/docker-dev.sh
+```
+
+The application will be available at:
+- **Application**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
+
+### Production Mode
+
+Deploy the application in production mode with Nginx reverse proxy:
+
+```bash
+# Using Docker Compose
+docker-compose -f docker-compose.prod.yml up --build -d
+
+# Or using the convenience script
+./scripts/docker-prod.sh
+```
+
+The application will be available at:
+- **Application**: http://localhost (port 80)
+- **API Documentation**: http://localhost/docs
+
+### Docker Commands
+
+```bash
+# Build the image
+docker build -t htmx-fastapi-service .
+
+# Run the container
+docker run -p 8000:8000 htmx-fastapi-service
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+
+# Rebuild and restart
+docker-compose up --build --force-recreate
+```
+
+### Production Features
+
+- **Nginx Reverse Proxy**: Handles static files and load balancing
+- **Health Checks**: Automatic container health monitoring
+- **Security Headers**: XSS protection, content type options, etc.
+- **Rate Limiting**: API rate limiting to prevent abuse
+- **Gzip Compression**: Automatic compression for better performance
+- **Resource Limits**: Memory and CPU limits for containers
+
 ## License
 
 This project is open source and available under the [MIT License](LICENSE).
