@@ -1,0 +1,8 @@
+{% for message in messages %}
+<div class="bg-gray-50 border-l-4 border-gray-400 p-4 rounded mb-3">
+    <div class="flex justify-between items-start">
+        <p class="text-gray-800">{{ message.text }}</p>
+        <span class="text-sm text-gray-500 ml-4">{{ message.timestamp }}</span>
+    </div>
+</div>
+{% endfor %}
