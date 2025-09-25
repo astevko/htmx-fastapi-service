@@ -1,5 +1,9 @@
 # HTMX FastAPI Service
 
+[![Docker Build and Test](https://github.com/andrewstevko/htmx-fastapi-service/actions/workflows/docker-test.yml/badge.svg)](https://github.com/andrewstevko/htmx-fastapi-service/actions/workflows/docker-test.yml)
+[![Docker Hub](https://img.shields.io/docker/v/andrewstevko/htmx-fastapi-service?label=docker%20hub)](https://hub.docker.com/r/andrewstevko/htmx-fastapi-service)
+[![GitHub Container Registry](https://img.shields.io/badge/GHCR-available-blue)](https://github.com/andrewstevko/htmx-fastapi-service/pkgs/container/htmx-fastapi-service)
+
 A modern web application built with FastAPI and HTMX, demonstrating server-side rendering with dynamic interactions.
 
 ## Features
@@ -170,6 +174,43 @@ docker-compose up --build --force-recreate
 - **Rate Limiting**: API rate limiting to prevent abuse
 - **Gzip Compression**: Automatic compression for better performance
 - **Resource Limits**: Memory and CPU limits for containers
+
+## GitHub Actions CI/CD
+
+This project includes automated CI/CD workflows for building and publishing Docker images:
+
+### Available Workflows
+
+- **`docker-test.yml`**: Builds and tests Docker image on every push/PR
+- **`docker-build.yml`**: Publishes to Docker Hub on main branch and tags
+- **`docker-publish-ghcr.yml`**: Publishes to GitHub Container Registry
+
+### Setup for Docker Hub Publishing
+
+1. Create a Docker Hub account at [hub.docker.com](https://hub.docker.com)
+2. Create an access token in Docker Hub settings
+3. Add these secrets to your GitHub repository:
+   - `DOCKER_USERNAME`: Your Docker Hub username
+   - `DOCKER_TOKEN`: Your Docker Hub access token
+
+### Automatic Features
+
+- **Multi-platform builds**: AMD64 and ARM64 support
+- **Security scanning**: Trivy vulnerability scanning
+- **Automatic tagging**: Based on branches and git tags
+- **Cache optimization**: Faster builds with GitHub Actions cache
+
+### Pulling Images
+
+```bash
+# Docker Hub
+docker pull yourusername/htmx-fastapi-service:latest
+
+# GitHub Container Registry
+docker pull ghcr.io/yourusername/htmx-fastapi-service:latest
+```
+
+For detailed setup instructions, see [.github/README.md](.github/README.md).
 
 ## License
 

@@ -1,0 +1,23 @@
+name: Workflow Status Badge
+
+on:
+  workflow_run:
+    workflows: ["Docker Build and Test", "Build and Push Docker Image", "Build and Push to GitHub Container Registry"]
+    types: [completed]
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Update README with latest image info
+      run: |
+        # This is a placeholder for updating README with latest image information
+        # You can extend this to update badges or image tags in the README
+        echo "Workflow completed successfully!"

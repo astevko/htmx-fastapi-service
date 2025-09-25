@@ -1,0 +1,63 @@
+name: Docker Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64
+        push: false
+        tags: htmx-fastapi-service:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test Docker image
+      run: |
+        # Start the container
+        docker run -d --name test-container -p 8000:8000 htmx-fastapi-service:test
+        
+        # Wait for the container to start
+        sleep 15
+        
+        # Test the health endpoint
+        echo "Testing health endpoint..."
+        curl -f http://localhost:8000/ || exit 1
+        
+        # Test the API endpoint
+        echo "Testing API endpoint..."
+        curl -f http://localhost:8000/api/messages || exit 1
+        
+        # Test with timezone parameter
+        echo "Testing timezone functionality..."
+        curl -f "http://localhost:8000/api/messages?user_timezone=America/New_York" || exit 1
+        
+        # Clean up
+        docker stop test-container
+        docker rm test-container
+        
+        echo "✅ All tests passed!"
+
+    - name: Run security scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: htmx-fastapi-service:test
+        format: 'table'
+        exit-code: '1'
+        ignore-unfixed: true
+        severity: 'CRITICAL,HIGH'
