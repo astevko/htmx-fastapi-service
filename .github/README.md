@@ -8,11 +8,11 @@ This repository includes several GitHub Actions workflows for building, testing,
 - **Triggers**: Push to `main`/`develop` branches, Pull Requests to `main`
 - **Purpose**: Build and test Docker image without publishing
 - **Features**:
-  - Builds Docker image
+  - Builds Docker image with `load: true` to make it available for testing
   - Runs health checks
   - Tests API endpoints
   - Tests timezone functionality
-  - Security scanning with Trivy
+  - Security scanning with Trivy (non-blocking)
 
 ### 2. Docker Hub Publishing (`docker-build.yml`)
 - **Triggers**: Push to `main`/`develop` branches, Tags starting with `v`
@@ -124,6 +124,16 @@ If you see "Resource not accessible by integration" errors with SARIF uploads:
 3. **Alternative**: Use the dedicated `security-scan.yml` workflow for comprehensive scanning
 
 The security scanning is set to `continue-on-error: true` so it won't block your Docker builds.
+
+### Docker Image Testing Issues
+
+If you see "pull access denied" or "repository does not exist" errors in the test workflow:
+
+1. **Image Availability**: The workflow uses `load: true` to make the built image available for testing
+2. **Step Context**: Each step runs in the same runner, so the image persists between steps
+3. **Cache**: Uses GitHub Actions cache for faster builds
+
+This ensures the Docker image built in one step is available for testing in subsequent steps.
 
 ### Manual Testing
 
