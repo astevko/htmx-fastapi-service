@@ -8,7 +8,6 @@
         <script src="https://unpkg.com/htmx.org@1.9.10"></script>
         <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
         <link href="/static/css/style.css" rel="stylesheet">
-        <script src="/static/js/login.js"></script>
     </head>
 
     <body class="bg-gray-100 min-h-screen">
@@ -34,6 +33,8 @@
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 required>
                         </div>
+                        <!-- Hidden timezone field with inline JavaScript -->
+                        <input type="hidden" name="user_timezone" id="user_timezone">
                         <button type="submit"
                             class="w-full px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
                             Login
@@ -46,6 +47,11 @@
                 </div>
             </div>
         </div>
+
+        <script>
+            // Set timezone when page loads
+            document.getElementById('user_timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        </script>
     </body>
 
 </html>
