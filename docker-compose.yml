@@ -7,6 +7,7 @@ services:
       - "8000:8000"
     environment:
       - PYTHONPATH=/app
+      - DATABASE_URL=postgresql+psycopg://htmx_user:htmx_password@postgres:5432/htmx_db
     volumes:
       # Mount source code for development (comment out for production)
       - .:/app
@@ -14,6 +15,9 @@ services:
       - /app/.venv
       - /app/__pycache__
       - /app/.pytest_cache
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/" ]
@@ -21,6 +25,23 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=htmx_db
+      - POSTGRES_USER=htmx_user
+      - POSTGRES_PASSWORD=htmx_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U htmx_user -d htmx_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Optional: Add a reverse proxy for production
   nginx:
@@ -36,7 +57,7 @@ services:
     profiles:
       - production
 
-  # Optional: Add Redis for session storage or caching
+  # Redis for caching and session management
   redis:
     image: redis:7-alpine
     ports:
@@ -47,20 +68,6 @@ services:
     profiles:
       - production
 
-  # Duck-UI for DuckDB database management
-  duck-ui:
-    image: ghcr.io/caioricciuti/duck-ui:latest
-    ports:
-      - "5522:5522"
-    environment:
-      - DUCK_UI_ALLOW_UNSIGNED_EXTENSIONS=false
-    volumes:
-      - duckdb_data:/app/data
-    restart: unless-stopped
-    profiles:
-      - dev
-      - production
-
 volumes:
   redis_data:
-  duckdb_data:
+  postgres_data:

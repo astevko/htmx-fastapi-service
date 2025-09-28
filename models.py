@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
+from sqlalchemy import Column, Integer, String, DateTime, Sequence
+from database import Base
 
 
 class LoginRequest(BaseModel):
@@ -57,3 +59,13 @@ class LoginErrorResponse(BaseModel):
     """Login error response model"""
     error: str
     message: str = "Login failed"
+
+
+# SQLAlchemy Models
+class MessageDB(Base):
+    """SQLAlchemy model for messages table"""
+    __tablename__ = "messages"
+    
+    id = Column(Integer, Sequence('id_sequence'), primary_key=True, index=True)
+    text = Column(String, nullable=False)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)

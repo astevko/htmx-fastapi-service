@@ -1,47 +1,104 @@
-import duckdb
+"""
+Message storage and retrieval using PostgreSQL with SQLAlchemy
+"""
+
 from datetime import datetime
-from models import Message
+from typing import List
+from sqlalchemy.orm import Session
+from sqlalchemy import desc, asc
+from database import SessionLocal
+from models import Message, MessageDB
+import logging
 
-# Initialize DuckDB connection and create table if not exists
-conn = duckdb.connect(database='messages.duckdb', read_only=False)
+logger = logging.getLogger(__name__)
 
-# Create sequence for auto-incrementing ID
-conn.execute("CREATE SEQUENCE IF NOT EXISTS id_sequence START 1;")
 
-# Create messages table with auto-incrementing ID
-conn.execute("""
-CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER DEFAULT nextval('id_sequence'),
-    text VARCHAR NOT NULL,
-    timestamp TIMESTAMP NOT NULL
-)
-""")
+def store_message(text: str, timestamp: datetime = None) -> None:
+    """Store a message in PostgreSQL"""
+    db = SessionLocal()
+    try:
+        if timestamp is None:
+            timestamp = datetime.utcnow()
+        
+        message = MessageDB(text=text, timestamp=timestamp)
+        db.add(message)
+        db.commit()
+        logger.debug(f"Stored message: {text[:50]}...")
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to store message: {e}")
+        raise
+    finally:
+        db.close()
 
-def store_message(text: str, timestamp: datetime = None):
-    """Store a message in DuckDB"""
-    if timestamp is None:
-        # Use DuckDB's now() function for timestamp, let auto-increment handle ID
-        conn.execute(
-            "INSERT INTO messages (text, timestamp) VALUES (?, now())",
-            [text]
-        )
-    else:
-        # Use provided timestamp, let auto-increment handle ID
-        conn.execute(
-            "INSERT INTO messages (text, timestamp) VALUES (?, ?)",
-            [text, timestamp]
-        )
 
-def get_all_messages(descending: bool = True) -> list[Message]:
-    """Retrieve all messages from DuckDB as Message objects, newest first by default"""
-    order = "DESC" if descending else "ASC"
-    result = conn.execute(
-        f"SELECT text, timestamp FROM messages ORDER BY timestamp {order}"
-    ).fetchall()
-    
-    # Convert raw database results to Message objects for type safety and validation
-    return [Message(text=text, timestamp=timestamp) for text, timestamp in result]
+def get_all_messages(descending: bool = True) -> List[Message]:
+    """Retrieve all messages from PostgreSQL as Message objects"""
+    db = SessionLocal()
+    try:
+        order_func = desc if descending else asc
+        
+        db_messages = db.query(MessageDB).order_by(order_func(MessageDB.timestamp)).all()
+        
+        # Convert SQLAlchemy objects to Pydantic Message objects
+        messages = [Message(text=msg.text, timestamp=msg.timestamp) for msg in db_messages]
+        
+        logger.debug(f"Retrieved {len(messages)} messages")
+        return messages
+        
+    except Exception as e:
+        logger.error(f"Failed to retrieve messages: {e}")
+        raise
+    finally:
+        db.close()
 
-def clear_messages():
-    """Delete all messages (for testing/demo purposes)"""
-    conn.execute("DELETE FROM messages")
+
+def get_message_count() -> int:
+    """Get total number of messages"""
+    db = SessionLocal()
+    try:
+        count = db.query(MessageDB).count()
+        return count
+    except Exception as e:
+        logger.error(f"Failed to get message count: {e}")
+        raise
+    finally:
+        db.close()
+
+
+def get_messages_by_date_range(start_date: datetime, end_date: datetime) -> List[Message]:
+    """Get messages within a date range"""
+    db = SessionLocal()
+    try:
+        db_messages = db.query(MessageDB).filter(
+            MessageDB.timestamp >= start_date,
+            MessageDB.timestamp <= end_date
+        ).order_by(desc(MessageDB.timestamp)).all()
+        
+        messages = [Message(text=msg.text, timestamp=msg.timestamp) for msg in db_messages]
+        return messages
+        
+    except Exception as e:
+        logger.error(f"Failed to get messages by date range: {e}")
+        raise
+    finally:
+        db.close()
+
+
+def search_messages(search_term: str) -> List[Message]:
+    """Search messages by text content"""
+    db = SessionLocal()
+    try:
+        db_messages = db.query(MessageDB).filter(
+            MessageDB.text.ilike(f"%{search_term}%")
+        ).order_by(desc(MessageDB.timestamp)).all()
+        
+        messages = [Message(text=msg.text, timestamp=msg.timestamp) for msg in db_messages]
+        return messages
+        
+    except Exception as e:
+        logger.error(f"Failed to search messages: {e}")
+        raise
+    finally:
+        db.close()

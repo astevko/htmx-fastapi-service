@@ -15,6 +15,7 @@ from models import (
     MessageRequest, MessageResponse, LoginSuccessResponse, LoginErrorResponse
 )
 from messages import store_message, get_all_messages
+from database import init_database, test_connection
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -46,7 +47,22 @@ templates = Jinja2Templates(directory="templates")
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize demo messages on startup"""
+    """Initialize database and demo messages on startup"""
+    try:
+        # Test database connection
+        if test_connection():
+            logger.info("Database connection successful")
+            # Initialize database tables
+            init_database()
+            logger.info("Database initialized successfully")
+        else:
+            logger.error("Database connection failed")
+            raise Exception("Database connection failed")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        raise
+    
+    # Add demo messages
     now = datetime.now(timezone.utc)
     
     # Check if we already have messages to avoid duplicates
@@ -56,6 +72,7 @@ async def startup_event():
         store_message("This is a demo message", now - timedelta(minutes=1))
         store_message("Welcome to HTMX + FastAPI!", now - timedelta(minutes=5))
         store_message("Try adding your own message!", now - timedelta(hours=1))
+        logger.info("Demo messages added")
 
 # JWT Helper Functions
 def create_access_token(data: TokenData, expires_delta: timedelta = None):

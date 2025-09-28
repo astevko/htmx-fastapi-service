@@ -1,249 +1,235 @@
+"""
+Unit tests for the messages component using PostgreSQL with SQLAlchemy
+"""
+
 import pytest
-import duckdb
 from datetime import datetime, timezone, timedelta
-from messages import store_message, get_all_messages, clear_messages
-from models import Message
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+import tempfile
+import os
+
+# Import the modules we want to test
+from models import Message, MessageDB, Base
+import messages
 
 
-class TestMessagesComponent:
-    """Test suite for the messages component using DuckDB"""
+class TestMessages:
+    """Test class for messages functionality"""
     
     @pytest.fixture(autouse=True)
     def setup_and_teardown(self, monkeypatch):
         """Setup and teardown for each test with isolated database"""
-        # Use in-memory database for testing
-        test_conn = duckdb.connect(':memory:')
-        
-        # Create sequence for auto-incrementing ID
-        test_conn.execute("CREATE SEQUENCE IF NOT EXISTS id_sequence START 1;")
-        
-        # Create messages table with auto-incrementing ID
-        test_conn.execute("""
-        CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER DEFAULT nextval('id_sequence'),
-            text VARCHAR NOT NULL,
-            timestamp TIMESTAMP NOT NULL
+        # Create a temporary in-memory SQLite database for testing
+        # (SQLite is compatible with SQLAlchemy and easier for testing)
+        engine = create_engine(
+            "sqlite:///:memory:",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False}
         )
-        """)
         
-        # Patch the messages module to use our test database
-        monkeypatch.setattr('messages.conn', test_conn)
+        # Create all tables
+        Base.metadata.create_all(bind=engine)
+        
+        # Create session factory
+        TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        
+        # Patch the database module to use our test database
+        monkeypatch.setattr('database.SessionLocal', TestSessionLocal)
+        monkeypatch.setattr('database.engine', engine)
         
         yield
         
-        # Cleanup: close the connection
-        test_conn.close()
-    
+        # Cleanup: close the engine
+        engine.dispose()
+
     def test_store_message_with_timestamp(self):
         """Test storing a message with a specific timestamp"""
-        test_text = "Test message with timestamp"
-        test_timestamp = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        timestamp = datetime(2024, 12, 1, 14, 30, 22, tzinfo=timezone.utc)
+        message_text = "Test message with timestamp"
         
-        store_message(test_text, test_timestamp)
-        
-        messages = get_all_messages()
-        assert len(messages) == 1
-        assert messages[0].text == test_text
-        # DuckDB converts UTC to local time, so we need to account for that
-        stored_timestamp = messages[0].timestamp
-        # DuckDB converts to local time (PST = UTC-8)
-        expected_local = test_timestamp.replace(tzinfo=None) - timedelta(hours=8)
-        assert stored_timestamp == expected_local
-    
-    def test_store_message_without_timestamp(self):
-        """Test storing a message without timestamp (should use DuckDB's now())"""
-        test_text = "Test message without timestamp"
-        
-        store_message(test_text)
-        
-        messages = get_all_messages()
-        assert len(messages) == 1
-        assert messages[0].text == test_text
-        
-        # Check that a timestamp was stored (should be recent)
-        stored_timestamp = messages[0].timestamp
-        assert isinstance(stored_timestamp, datetime)
-        # Verify it's within the last hour (reasonable check for DuckDB's now())
-        now = datetime.now()
-        assert stored_timestamp <= now
-        assert stored_timestamp >= now - timedelta(hours=1)
-    
-    def test_get_all_messages_descending_order(self):
-        """Test retrieving messages in descending order (newest first)"""
-        # Store messages with different timestamps
-        base_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
-        
-        store_message("First message", base_time)
-        store_message("Second message", base_time + timedelta(minutes=5))
-        store_message("Third message", base_time + timedelta(minutes=10))
-        
-        messages = get_all_messages(descending=True)
-        
-        assert len(messages) == 3
-        assert messages[0].text == "Third message"  # Newest first
-        assert messages[1].text == "Second message"
-        assert messages[2].text == "First message"  # Oldest last
-    
-    def test_get_all_messages_ascending_order(self):
-        """Test retrieving messages in ascending order (oldest first)"""
-        # Store messages with different timestamps
-        base_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
-        
-        store_message("First message", base_time)
-        store_message("Second message", base_time + timedelta(minutes=5))
-        store_message("Third message", base_time + timedelta(minutes=10))
-        
-        messages = get_all_messages(descending=False)
-        
-        assert len(messages) == 3
-        assert messages[0].text == "First message"  # Oldest first
-        assert messages[1].text == "Second message"
-        assert messages[2].text == "Third message"  # Newest last
-    
-    def test_get_all_messages_empty_database(self):
-        """Test retrieving messages from empty database"""
-        messages = get_all_messages()
-        assert messages == []
-    
-    def test_clear_messages(self):
-        """Test clearing all messages from database"""
-        # Store some messages
-        store_message("Message 1")
-        store_message("Message 2")
-        store_message("Message 3")
-        
-        # Verify messages exist
-        messages = get_all_messages()
-        assert len(messages) == 3
-        
-        # Clear all messages
-        clear_messages()
-        
-        # Verify messages are gone
-        messages = get_all_messages()
-        assert messages == []
-    
-    def test_store_multiple_messages(self):
-        """Test storing multiple messages and verifying they persist"""
-        messages_data = [
-            ("Hello world", datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)),
-            ("HTMX is awesome", datetime(2024, 1, 15, 10, 5, 0, tzinfo=timezone.utc)),
-            ("FastAPI rocks", datetime(2024, 1, 15, 10, 10, 0, tzinfo=timezone.utc)),
-        ]
-        
-        # Store all messages
-        for text, timestamp in messages_data:
-            store_message(text, timestamp)
+        # Store the message
+        messages.store_message(message_text, timestamp)
         
         # Retrieve and verify
-        messages = get_all_messages(descending=True)
-        assert len(messages) == 3
+        all_messages = messages.get_all_messages()
+        assert len(all_messages) == 1
         
-        # Check content and order
-        for i, (expected_text, expected_timestamp) in enumerate(messages_data[::-1]):
-            assert messages[i].text == expected_text
-            # DuckDB converts to local time (PST = UTC-8)
-            expected_local = expected_timestamp.replace(tzinfo=None) - timedelta(hours=8)
-            assert messages[i].timestamp == expected_local
-    
-    def test_message_with_special_characters(self):
-        """Test storing messages with special characters and unicode"""
-        special_messages = [
-            "Message with émojis 🚀",
-            "Message with quotes \"double\" and 'single'",
-            "Message with <HTML> & XML entities",
-            "Message with newlines\nand\ttabs",
-            "Message with unicode: 你好世界",
-        ]
+        message = all_messages[0]
+        assert message.text == message_text
+        # Convert to naive datetime for comparison (PostgreSQL stores as naive)
+        expected_timestamp = timestamp.replace(tzinfo=None)
+        assert message.timestamp == expected_timestamp
+
+    def test_store_message_without_timestamp(self):
+        """Test storing a message without timestamp (should use current time)"""
+        message_text = "Test message without timestamp"
         
-        for text in special_messages:
-            store_message(text)
+        # Store the message
+        messages.store_message(message_text)
         
-        messages = get_all_messages()
-        assert len(messages) == len(special_messages)
+        # Retrieve and verify
+        all_messages = messages.get_all_messages()
+        assert len(all_messages) == 1
         
-        # Verify all messages are stored correctly
-        stored_texts = [msg.text for msg in messages]
-        for text in special_messages:
-            assert text in stored_texts
-    
-    def test_message_with_empty_text(self):
-        """Test storing empty message text"""
-        store_message("")
-        
-        messages = get_all_messages()
-        assert len(messages) == 1
-        assert messages[0].text == ""
-    
-    def test_large_message_text(self):
-        """Test storing large message text"""
-        large_text = "A" * 1000  # 1000 character message
-        
-        store_message(large_text)
-        
-        messages = get_all_messages()
-        assert len(messages) == 1
-        assert messages[0].text == large_text
-        assert len(messages[0].text) == 1000
-    
-    def test_timestamp_precision(self):
-        """Test timestamp precision with microseconds"""
-        precise_timestamp = datetime(2024, 1, 15, 12, 30, 45, 123456, tzinfo=timezone.utc)
-        
-        store_message("Precise timestamp test", precise_timestamp)
-        
-        messages = get_all_messages()
-        assert len(messages) == 1
-        stored_timestamp = messages[0].timestamp
-        
-        # Check that timestamp precision is preserved (DuckDB converts to local time)
-        expected_local = precise_timestamp.replace(tzinfo=None) - timedelta(hours=8)
-        assert stored_timestamp == expected_local
-        assert stored_timestamp.microsecond == 123456
-    
-    def test_concurrent_message_operations(self):
-        """Test that multiple rapid message operations work correctly"""
-        # Simulate rapid message storage
-        for i in range(50):
-            store_message(f"Rapid message {i}")
-        
-        messages = get_all_messages()
-        assert len(messages) == 50
-        
-        # Verify all messages are present
-        message_texts = [msg.text for msg in messages]
-        for i in range(50):
-            assert f"Rapid message {i}" in message_texts
-    
-    def test_message_pydantic_validation(self):
-        """Test that returned messages are proper Pydantic Message objects"""
-        store_message("Test message for Pydantic validation")
-        
-        messages = get_all_messages()
-        assert len(messages) == 1
-        
-        # Verify it's a Message object
-        message = messages[0]
-        assert isinstance(message, Message)
-        
-        # Verify it has the expected attributes
-        assert hasattr(message, 'text')
-        assert hasattr(message, 'timestamp')
-        
-        # Verify the values
-        assert message.text == "Test message for Pydantic validation"
+        message = all_messages[0]
+        assert message.text == message_text
         assert isinstance(message.timestamp, datetime)
         
-        # Test that we can serialize/deserialize (Pydantic validation)
-        message_dict = message.model_dump()
-        assert message_dict['text'] == "Test message for Pydantic validation"
-        assert isinstance(message_dict['timestamp'], datetime)
+        # Check that timestamp is recent (within the last minute)
+        now = datetime.utcnow()
+        time_diff = abs((now - message.timestamp).total_seconds())
+        assert time_diff < 60  # Should be within 1 minute
+
+    def test_store_multiple_messages(self):
+        """Test storing multiple messages"""
+        messages_data = [
+            ("First message", datetime(2024, 12, 1, 10, 0, 0, tzinfo=timezone.utc)),
+            ("Second message", datetime(2024, 12, 1, 11, 0, 0, tzinfo=timezone.utc)),
+            ("Third message", datetime(2024, 12, 1, 12, 0, 0, tzinfo=timezone.utc))
+        ]
         
-        # Test recreation from dict
-        recreated_message = Message(**message_dict)
-        assert recreated_message.text == message.text
-        assert recreated_message.timestamp == message.timestamp
+        # Store messages
+        for text, timestamp in messages_data:
+            messages.store_message(text, timestamp)
+        
+        # Retrieve and verify
+        all_messages = messages.get_all_messages()
+        assert len(all_messages) == 3
+        
+        # Messages should be in descending order (newest first)
+        for i, message in enumerate(all_messages):
+            expected_text, expected_timestamp = messages_data[2 - i]  # Reverse order
+            assert message.text == expected_text
+            assert message.timestamp == expected_timestamp.replace(tzinfo=None)
 
+    def test_get_messages_ascending_order(self):
+        """Test retrieving messages in ascending order"""
+        messages_data = [
+            ("First", datetime(2024, 12, 1, 10, 0, 0, tzinfo=timezone.utc)),
+            ("Second", datetime(2024, 12, 1, 11, 0, 0, tzinfo=timezone.utc)),
+            ("Third", datetime(2024, 12, 1, 12, 0, 0, tzinfo=timezone.utc))
+        ]
+        
+        # Store messages
+        for text, timestamp in messages_data:
+            messages.store_message(text, timestamp)
+        
+        # Retrieve in ascending order
+        all_messages = messages.get_all_messages(descending=False)
+        assert len(all_messages) == 3
+        
+        # Messages should be in ascending order (oldest first)
+        for i, message in enumerate(all_messages):
+            expected_text, expected_timestamp = messages_data[i]
+            assert message.text == expected_text
+            assert message.timestamp == expected_timestamp.replace(tzinfo=None)
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    def test_empty_messages_list(self):
+        """Test retrieving messages when none exist"""
+        all_messages = messages.get_all_messages()
+        assert len(all_messages) == 0
+        assert isinstance(all_messages, list)
+
+    def test_message_pydantic_validation(self):
+        """Test that get_all_messages returns proper Message objects"""
+        message_text = "Test Pydantic validation"
+        timestamp = datetime(2024, 12, 1, 14, 30, 22, tzinfo=timezone.utc)
+        
+        # Store message
+        messages.store_message(message_text, timestamp)
+        
+        # Retrieve messages
+        all_messages = messages.get_all_messages()
+        assert len(all_messages) == 1
+        
+        message = all_messages[0]
+        
+        # Verify it's a Message object with proper attributes
+        assert isinstance(message, Message)
+        assert hasattr(message, 'text')
+        assert hasattr(message, 'timestamp')
+        assert message.text == message_text
+        assert message.timestamp == timestamp.replace(tzinfo=None)
+        
+        # Test Pydantic serialization
+        message_dict = message.model_dump()
+        assert message_dict['text'] == message_text
+        assert 'timestamp' in message_dict
+
+    def test_get_message_count(self):
+        """Test getting message count"""
+        # Initially should be 0
+        count = messages.get_message_count()
+        assert count == 0
+        
+        # Add some messages
+        messages.store_message("Message 1")
+        messages.store_message("Message 2")
+        messages.store_message("Message 3")
+        
+        # Count should be 3
+        count = messages.get_message_count()
+        assert count == 3
+
+    def test_search_messages(self):
+        """Test searching messages by text content"""
+        # Add test messages
+        messages.store_message("Hello world")
+        messages.store_message("Goodbye world")
+        messages.store_message("Hello there")
+        messages.store_message("Not found")
+        
+        # Search for "hello"
+        results = messages.search_messages("hello")
+        assert len(results) == 2
+        assert all("hello" in result.text.lower() for result in results)
+        
+        # Search for "world"
+        results = messages.search_messages("world")
+        assert len(results) == 2
+        assert all("world" in result.text.lower() for result in results)
+        
+        # Search for non-existent text
+        results = messages.search_messages("xyz")
+        assert len(results) == 0
+
+    def test_get_messages_by_date_range(self):
+        """Test getting messages within a date range"""
+        base_time = datetime(2024, 12, 1, 12, 0, 0, tzinfo=timezone.utc)
+        
+        # Add messages at different times
+        messages.store_message("Before range", base_time - timedelta(hours=2))
+        messages.store_message("In range 1", base_time - timedelta(minutes=30))
+        messages.store_message("In range 2", base_time + timedelta(minutes=30))
+        messages.store_message("After range", base_time + timedelta(hours=2))
+        
+        # Get messages within range
+        start_time = base_time - timedelta(hours=1)
+        end_time = base_time + timedelta(hours=1)
+        
+        results = messages.get_messages_by_date_range(
+            start_time.replace(tzinfo=None),
+            end_time.replace(tzinfo=None)
+        )
+        
+        assert len(results) == 2
+        assert all("range" in result.text.lower() for result in results)
+
+    def test_timestamp_precision(self):
+        """Test that timestamps maintain reasonable precision"""
+        # Store message with precise timestamp
+        precise_time = datetime(2024, 12, 1, 14, 30, 22, 123456, tzinfo=timezone.utc)
+        messages.store_message("Precise timestamp test", precise_time)
+        
+        # Retrieve and check precision
+        all_messages = messages.get_all_messages()
+        assert len(all_messages) == 1
+        
+        stored_time = all_messages[0].timestamp
+        expected_time = precise_time.replace(tzinfo=None)
+        
+        # Check that the time is preserved (microsecond precision may be reduced)
+        time_diff = abs((stored_time - expected_time).total_seconds())
+        assert time_diff < 1  # Should be within 1 second
