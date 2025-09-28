@@ -16,7 +16,7 @@ services:
       - /app/.pytest_cache
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -47,5 +47,20 @@ services:
     profiles:
       - production
 
+  # Duck-UI for DuckDB database management
+  duck-ui:
+    image: ghcr.io/caioricciuti/duck-ui:latest
+    ports:
+      - "5522:5522"
+    environment:
+      - DUCK_UI_ALLOW_UNSIGNED_EXTENSIONS=false
+    volumes:
+      - duckdb_data:/app/data
+    restart: unless-stopped
+    profiles:
+      - dev
+      - production
+
 volumes:
   redis_data:
+  duckdb_data:

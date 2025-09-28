@@ -175,6 +175,225 @@ docker-compose up --build --force-recreate
 - **Gzip Compression**: Automatic compression for better performance
 - **Resource Limits**: Memory and CPU limits for containers
 
+## DuckDB Database Management
+
+This application uses DuckDB as its embedded database for message storage. A web-based management interface (Duck-UI) is available for database administration.
+
+### Starting Duck-UI
+
+**Option 1: Using the convenience script**
+```bash
+./scripts/start-duck-ui.sh
+```
+
+**Option 2: Using Docker Compose directly**
+```bash
+# Development mode
+docker-compose --profile dev up -d duck-ui
+
+# Production mode (includes Duck-UI)
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+### Accessing Duck-UI
+
+Once started, Duck-UI will be available at: **http://localhost:5522**
+
+### Duck-UI Features
+
+- **Database Browser**: View all tables, schemas, and data
+- **SQL Query Interface**: Execute SQL queries directly
+- **Data Visualization**: Explore your message data
+- **Database Management**: Create, modify, and delete tables
+
+### Database Schema
+
+The application creates the following schema:
+
+```sql
+CREATE SEQUENCE id_sequence START 1;
+CREATE TABLE messages (
+    id INTEGER DEFAULT nextval('id_sequence'),
+    text VARCHAR NOT NULL,
+    timestamp TIMESTAMP NOT NULL
+);
+```
+
+### Useful SQL Queries
+
+```sql
+-- View all messages
+SELECT * FROM messages ORDER BY timestamp DESC;
+
+-- Count total messages
+SELECT COUNT(*) FROM messages;
+
+-- Messages from last 24 hours
+SELECT * FROM messages 
+WHERE timestamp >= now() - INTERVAL '1 day'
+ORDER BY timestamp DESC;
+
+-- Most active time periods
+SELECT 
+    DATE_TRUNC('hour', timestamp) as hour,
+    COUNT(*) as message_count
+FROM messages 
+GROUP BY hour 
+ORDER BY hour DESC;
+```
+
+### Data Persistence
+
+- **Development**: Database files are stored in Docker volumes
+- **Production**: Persistent storage with `duckdb_data` volume
+- **Backup**: Database files are automatically backed up with container volumes
+
+## Database Management Scripts
+
+The project includes comprehensive scripts for database backup, restore, and export operations.
+
+### Quick Start
+
+**Interactive Database Management:**
+```bash
+./scripts/db-manage.sh
+```
+
+### Available Scripts
+
+#### **1. Database Management (Interactive)**
+```bash
+./scripts/db-manage.sh
+```
+- Interactive menu for all database operations
+- Backup, restore, export, statistics, and maintenance
+- User-friendly interface with colored output
+
+#### **2. Database Backup**
+```bash
+# Basic backup
+./scripts/backup-duckdb.sh
+
+# Compressed backup
+./scripts/backup-duckdb.sh -c
+
+# Custom options
+./scripts/backup-duckdb.sh -d /path/to/db.duckdb -o /backups -c -k 5
+```
+
+**Backup Options:**
+- `-d, --database`: Database file path
+- `-o, --output`: Backup directory
+- `-c, --compress`: Compress backup files
+- `-r, --remote`: Upload to remote server
+- `-k, --keep`: Keep N recent backups
+
+#### **3. Database Restore**
+```bash
+# Interactive restore (list available backups)
+./scripts/restore-duckdb.sh
+
+# Restore specific backup
+./scripts/restore-duckdb.sh messages_backup_20241201_143022.duckdb
+
+# Force restore without confirmation
+./scripts/restore-duckdb.sh -f backup.duckdb
+```
+
+**Restore Options:**
+- `-l, --list`: List available backups
+- `-d, --database`: Target database path
+- `-f, --force`: Force restore without confirmation
+
+#### **4. Data Export**
+```bash
+# Export all tables to CSV
+./scripts/export-duckdb.sh
+
+# Export to JSON
+./scripts/export-duckdb.sh -f json
+
+# Export specific table
+./scripts/export-duckdb.sh -t messages -f json
+
+# Export with custom query
+./scripts/export-duckdb.sh -q "SELECT * FROM messages WHERE text LIKE '%test%'" -f csv
+```
+
+**Export Formats:**
+- `csv`: Comma-separated values
+- `json`: JSON format
+- `sql`: SQL INSERT statements
+- `parquet`: Apache Parquet format
+
+### Backup Strategy
+
+#### **Automated Backups**
+```bash
+# Add to crontab for daily backups
+0 2 * * * /path/to/project/scripts/backup-duckdb.sh -c -k 30
+```
+
+#### **Backup Retention**
+- **Development**: Keep 10 recent backups
+- **Production**: Keep 30+ backups with compression
+- **Remote Storage**: Upload to cloud storage for long-term retention
+
+### Data Export Examples
+
+#### **Export All Data**
+```bash
+# Export everything to CSV
+./scripts/export-duckdb.sh -f csv
+
+# Export to Parquet for analytics
+./scripts/export-duckdb.sh -f parquet
+```
+
+#### **Custom Queries**
+```bash
+# Recent messages
+./scripts/export-duckdb.sh -q "SELECT * FROM messages WHERE timestamp >= now() - INTERVAL '7 days'" -f json
+
+# Message statistics
+./scripts/export-duckdb.sh -q "SELECT DATE_TRUNC('day', timestamp) as day, COUNT(*) as count FROM messages GROUP BY day" -f csv
+
+# Search messages
+./scripts/export-duckdb.sh -q "SELECT * FROM messages WHERE text LIKE '%error%'" -f sql
+```
+
+### Database Maintenance
+
+#### **Regular Maintenance**
+```bash
+# Run database maintenance
+./scripts/db-manage.sh
+# Select option 7: Database maintenance
+```
+
+#### **Statistics and Monitoring**
+```bash
+# View database statistics
+./scripts/db-manage.sh
+# Select option 5: Database statistics
+```
+
+### Disaster Recovery
+
+#### **Full Restore Process**
+1. **Stop Application**: Ensure no writes to database
+2. **Create Emergency Backup**: `./scripts/backup-duckdb.sh -c`
+3. **Restore Database**: `./scripts/restore-duckdb.sh`
+4. **Verify Data**: Check statistics and test queries
+5. **Restart Application**: Resume normal operations
+
+#### **Data Validation**
+```bash
+# Export and verify data integrity
+./scripts/export-duckdb.sh -f csv
+./scripts/export-duckdb.sh -q "SELECT COUNT(*) FROM messages"
+```
+
 ## GitHub Actions CI/CD
 
 This project includes automated CI/CD workflows for building and publishing Docker images:

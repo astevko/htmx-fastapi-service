@@ -29,6 +29,12 @@ class TokenData(BaseModel):
     timezone: Optional[str] = None
 
 
+class Message(BaseModel):
+    """Message model"""
+    text: str
+    timestamp: datetime
+
+
 class MessageRequest(BaseModel):
     """Message creation request model"""
     message: str = Field(..., min_length=1, max_length=500, description="Message content")

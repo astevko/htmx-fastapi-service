@@ -11,9 +11,10 @@ import secrets
 import os
 import hashlib
 from models import (
-    LoginRequest, User, UserResponse, TokenData, 
+    LoginRequest, User, UserResponse, TokenData, Message,
     MessageRequest, MessageResponse, LoginSuccessResponse, LoginErrorResponse
 )
+from messages import store_message, get_all_messages
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -30,8 +31,8 @@ def hash_password(password: str) -> str:
 
 # Demo user credentials (in production, use a proper database)
 DEMO_USER = User(
-    username="demo",
-    password=hash_password("demo123"),  # demo123
+    username="user@example.com",
+    password=hash_password("12341234"), 
     timezone=None  # Will be set during login
 )
 
@@ -42,6 +43,19 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Setup templates
 templates = Jinja2Templates(directory="templates")
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize demo messages on startup"""
+    now = datetime.now(timezone.utc)
+    
+    # Check if we already have messages to avoid duplicates
+    existing_messages = get_all_messages()
+    if not existing_messages:
+        # Add demo messages only if the database is empty
+        store_message("This is a demo message", now - timedelta(minutes=1))
+        store_message("Welcome to HTMX + FastAPI!", now - timedelta(minutes=5))
+        store_message("Try adding your own message!", now - timedelta(hours=1))
 
 # JWT Helper Functions
 def create_access_token(data: TokenData, expires_delta: timedelta = None):
@@ -110,7 +124,7 @@ def format_timestamp(dt: datetime, timezone_str: str = "UTC") -> str:
         
         # Convert to the specified timezone
         localized_dt = dt.replace(tzinfo=timezone.utc).astimezone(tz)
-        now = datetime.now(tz)
+        # now = datetime.now(tz)
 
         return localized_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
 
@@ -155,11 +169,9 @@ async def login(
     token_data = TokenData(sub=user.username, timezone=login_data.user_timezone)
     access_token = create_access_token(token_data, expires_delta=access_token_expires)
     
-    # Create response with cookies
-    response = templates.TemplateResponse("login_success.html", {
-        "request": request,
-        "username": user.username
-    })
+    # Create response with HTMX redirect header
+    response = HTMLResponse(content="<div>Login successful! Redirecting...</div>")
+    response.headers["HX-Redirect"] = "/msgs"
     
     # Set JWT cookie (session-based)
     response.set_cookie(
@@ -182,6 +194,8 @@ async def login(
     
     return response
 
+
+# CREATE MESSAGE POST ENDPOINT
 @app.post("/api/message", response_class=HTMLResponse)
 async def create_message(
     request: Request, 
@@ -192,38 +206,37 @@ async def create_message(
     # Create MessageRequest from form data for validation
     message_data = MessageRequest(message=message)
     
-    # TODO create message in database
     logger.debug(f"Posting message with timezone: {current_user.timezone} and message: {message_data.message}")
     now = datetime.now(timezone.utc)
     formatted_time = format_timestamp(now, current_user.timezone)
     
+    # Store message in database
+    store_message(message_data.message, now)
+
     return templates.TemplateResponse("message_partial.html", {
         "request": request,
         "message": message_data.message,
         "timestamp": formatted_time
     })
 
+# GET ALL MESSAGES GET ENDPOINT
 @app.get("/api/messages", response_class=HTMLResponse)
 async def get_messages(request: Request, current_user: UserResponse = Depends(get_current_user)):
     """HTMX endpoint to get all messages - requires authentication"""
     logger.debug(f"Getting messages with timezone: {current_user.timezone}")
-    # TODO replace with persistent messages
     # TODO add pagination
-    now = datetime.now(timezone.utc)
-    messages = [
-        MessageResponse(
-            text="This is a demo message", 
-            timestamp=format_timestamp(now - timedelta(minutes=1), current_user.timezone)
-        ),
-        MessageResponse(
-            text="Welcome to HTMX + FastAPI!", 
-            timestamp=format_timestamp(now - timedelta(minutes=5), current_user.timezone)
-        ),
-        MessageResponse(
-            text="Try adding your own message!", 
-            timestamp=format_timestamp(now - timedelta(hours=1), current_user.timezone)
-        ),
-    ]
+    
+    # Get messages from database as Message objects (already in newest first order)
+    db_messages = get_all_messages(descending=True)
+    
+    # Convert messages to user's timezone
+    messages = []
+    for message in db_messages:
+        formatted_time = format_timestamp(message.timestamp, current_user.timezone)
+        messages.append(MessageResponse(
+            text=message.text,
+            timestamp=formatted_time
+        ))
     return templates.TemplateResponse("messages_list.html", {
         "request": request,
         "messages": messages

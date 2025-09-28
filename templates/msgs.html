@@ -8,7 +8,6 @@
         <script src="https://unpkg.com/htmx.org@1.9.10"></script>
         <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
         <link href="/static/css/style.css" rel="stylesheet">
-        <script src="/static/js/timezone.js"></script>
     </head>
 
     <body class="bg-gray-100 min-h-screen">
@@ -48,7 +47,8 @@
                         </div>
                     </div>
 
-                    <div id="messages-container" class="space-y-3">
+                    <div id="messages-container" class="space-y-3" hx-get="/api/messages" hx-trigger="load"
+                        hx-swap="innerHTML">
                         <!-- Messages will be loaded here automatically on page load -->
                     </div>
                 </div>

@@ -69,7 +69,6 @@ jobs:
         
         # Test static files
         echo "Testing static files..."
-        curl -f http://localhost:8000/static/js/timezone.js || exit 1
         curl -f http://localhost:8000/static/css/style.css || exit 1
         
         # Clean up
