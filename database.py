@@ -42,25 +42,28 @@ def get_db():
 
 
 def check_driver():
-    """Check which PostgreSQL driver is being used"""
+    """Check which database driver is being used"""
     try:
         with engine.connect() as conn:
-            # Check if we're using PostgreSQL or SQLite (for testing)
-            if "postgresql" in DATABASE_URL:
+            # Check the actual driver being used
+            driver_name = engine.dialect.driver
+            logger.info(f"SQLAlchemy driver: {driver_name}")
+            
+            # Check database type by trying PostgreSQL version first, fallback to SQLite
+            try:
                 result = conn.execute(text("SELECT version()"))
                 version = result.fetchone()[0]
                 logger.info(f"PostgreSQL version: {version}")
-
-                # Check the actual driver being used
-                driver_name = engine.dialect.driver
-                logger.info(f"SQLAlchemy driver: {driver_name}")
-
-                return driver_name
-            else:
-                # SQLite for testing
-                driver_name = engine.dialect.driver
-                logger.info(f"SQLAlchemy driver: {driver_name}")
-                return driver_name
+            except Exception:
+                # If version() fails, try SQLite version
+                try:
+                    result = conn.execute(text("SELECT sqlite_version()"))
+                    version = result.fetchone()[0]
+                    logger.info(f"SQLite version: {version}")
+                except Exception as sqlite_error:
+                    logger.warning(f"Could not determine database version: {sqlite_error}")
+            
+            return driver_name
     except Exception as e:
         logger.error(f"Failed to check driver: {e}")
         return None

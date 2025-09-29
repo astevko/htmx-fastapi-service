@@ -92,9 +92,11 @@ class TestDatabase:
             logger.info("Messages table created successfully")
 
     def test_driver_detection(self):
-        """Test driver detection (will be sqlite for testing)"""
+        """Test driver detection (will be pysqlite for SQLite testing)"""
         driver = check_driver()
         assert driver is not None
+        # SQLite driver in SQLAlchemy is 'pysqlite', not 'sqlite'
+        assert driver == "pysqlite", f"Expected 'pysqlite' driver, got '{driver}'"
         logger.info(f"Driver detected: {driver}")
 
     def test_session_factory(self):
