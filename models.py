@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field
-from typing import Optional
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, Sequence
+from typing import Optional
+
+from pydantic import BaseModel, Field
+from sqlalchemy import Column, DateTime, Integer, Sequence, String
+
 from database import Base
 
 
@@ -10,9 +12,7 @@ class LoginRequest(BaseModel):
 
     username: str = Field(..., min_length=1, max_length=50, description="Username")
     password: str = Field(..., min_length=1, max_length=100, description="Password")
-    user_timezone: str = Field(
-        ..., min_length=1, max_length=50, description="User timezone"
-    )
+    user_timezone: str = Field(..., min_length=1, max_length=50, description="User timezone")
 
 
 class User(BaseModel):
@@ -47,9 +47,7 @@ class Message(BaseModel):
 class MessageRequest(BaseModel):
     """Message creation request model"""
 
-    message: str = Field(
-        ..., min_length=1, max_length=500, description="Message content"
-    )
+    message: str = Field(..., min_length=1, max_length=500, description="Message content")
 
 
 class MessageResponse(BaseModel):

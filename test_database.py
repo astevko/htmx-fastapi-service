@@ -2,28 +2,30 @@
 Comprehensive tests for database functionality with psycopg3
 """
 
-import pytest
+import logging
 import os
-from datetime import datetime, timezone, timedelta
+import tempfile
+from datetime import datetime, timedelta, timezone
+
+import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-import tempfile
-import logging
+
+import messages
 
 # Import the modules we want to test
 from database import (
-    engine,
-    SessionLocal,
+    DATABASE_URL,
     Base,
+    SessionLocal,
+    check_driver,
+    engine,
     get_db,
     init_database,
     test_connection,
-    check_driver,
-    DATABASE_URL,
 )
 from models import Message, MessageDB
-import messages
 
 # Set up test environment
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"  # Use in-memory SQLite for testing
@@ -47,9 +49,7 @@ class TestDatabase:
         )
 
         # Create session factory
-        TestSessionLocal = sessionmaker(
-            autocommit=False, autoflush=False, bind=test_engine
-        )
+        TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
         # Patch the database module to use our test database
         monkeypatch.setattr("database.engine", test_engine)
@@ -75,7 +75,7 @@ class TestDatabase:
     def test_database_initialization(self):
         """Test database initialization"""
         # Import the patched engine from database module
-        from database import engine         # noqa: F811
+        from database import engine  # noqa: F811
 
         # Tables should already be created by the fixture
         with engine.connect() as conn:
@@ -99,7 +99,7 @@ class TestDatabase:
 
     def test_session_factory(self):
         """Test session factory creation and cleanup"""
-        from database import SessionLocal         # noqa: F811
+        from database import SessionLocal  # noqa: F811
 
         db = SessionLocal()
         try:
@@ -126,14 +126,12 @@ class TestDatabase:
 
     def test_message_model_creation(self):
         """Test MessageDB model creation"""
-        from database import SessionLocal         # noqa: F811
+        from database import SessionLocal  # noqa: F811
 
         db = SessionLocal()
         try:
             # Create a test message
-            test_message = MessageDB(
-                text="Test message", timestamp=datetime.now(timezone.utc)
-            )
+            test_message = MessageDB(text="Test message", timestamp=datetime.now(timezone.utc))
             db.add(test_message)
             db.commit()
 
@@ -149,7 +147,7 @@ class TestDatabase:
 
     def test_messages_store_and_retrieve(self):
         """Test storing and retrieving messages"""
-        from messages import store_message, get_all_messages         # noqa: F811
+        from messages import get_all_messages, store_message  # noqa: F811
 
         # Store a test message
         test_text = "Test message for store/retrieve"
@@ -169,7 +167,7 @@ class TestDatabase:
 
     def test_messages_without_timestamp(self):
         """Test storing message without timestamp"""
-        from messages import store_message, get_all_messages         # noqa: F811
+        from messages import get_all_messages, store_message  # noqa: F811
 
         # Store message without timestamp
         store_message("Message without timestamp")
@@ -184,11 +182,7 @@ class TestDatabase:
 
         # Check that timestamp is recent (convert to naive for comparison)
         now = datetime.now(timezone.utc).replace(tzinfo=None)
-        message_time = (
-            message.timestamp.replace(tzinfo=None)
-            if message.timestamp.tzinfo
-            else message.timestamp
-        )
+        message_time = message.timestamp.replace(tzinfo=None) if message.timestamp.tzinfo else message.timestamp
         time_diff = abs((now - message_time).total_seconds())
         assert time_diff < 60  # Should be within 1 minute
 
@@ -196,7 +190,7 @@ class TestDatabase:
 
     def test_multiple_messages_ordering(self):
         """Test storing multiple messages and ordering"""
-        from messages import store_message, get_all_messages
+        from messages import get_all_messages, store_message
 
         # Store multiple messages with different timestamps
         base_time = datetime.now(timezone.utc)
@@ -222,7 +216,7 @@ class TestDatabase:
 
     def test_messages_ascending_order(self):
         """Test retrieving messages in ascending order"""
-        from messages import store_message, get_all_messages
+        from messages import get_all_messages, store_message
 
         # Store multiple messages
         base_time = datetime.now(timezone.utc)
@@ -248,7 +242,7 @@ class TestDatabase:
 
     def test_message_count(self):
         """Test getting message count"""
-        from messages import store_message, get_message_count
+        from messages import get_message_count, store_message
 
         # Initially should be 0
         count = get_message_count()
@@ -267,7 +261,7 @@ class TestDatabase:
 
     def test_search_messages(self):
         """Test searching messages by text content"""
-        from messages import store_message, search_messages
+        from messages import search_messages, store_message
 
         # Add test messages
         store_message("Hello world")
@@ -293,7 +287,7 @@ class TestDatabase:
 
     def test_messages_by_date_range(self):
         """Test getting messages within a date range"""
-        from messages import store_message, get_messages_by_date_range
+        from messages import get_messages_by_date_range, store_message
 
         base_time = datetime.now(timezone.utc)
 
@@ -307,9 +301,7 @@ class TestDatabase:
         start_time = base_time - timedelta(hours=1)
         end_time = base_time + timedelta(hours=1)
 
-        results = get_messages_by_date_range(
-            start_time.replace(tzinfo=None), end_time.replace(tzinfo=None)
-        )
+        results = get_messages_by_date_range(start_time.replace(tzinfo=None), end_time.replace(tzinfo=None))
 
         assert len(results) == 2
         assert all("range" in result.text.lower() for result in results)
@@ -318,7 +310,7 @@ class TestDatabase:
 
     def test_pydantic_message_validation(self):
         """Test that messages are properly validated as Pydantic models"""
-        from messages import store_message, get_all_messages
+        from messages import get_all_messages, store_message
 
         # Store a message
         store_message("Pydantic validation test")
@@ -359,7 +351,7 @@ class TestDatabase:
 
     def test_concurrent_access_simulation(self):
         """Test simulating concurrent access patterns"""
-        from messages import store_message, get_all_messages
+        from messages import get_all_messages, store_message
 
         # Simulate multiple rapid operations
         for i in range(10):
@@ -370,9 +362,7 @@ class TestDatabase:
         assert len(messages_list) == 10
 
         # Verify message content
-        for i, message in enumerate(
-            reversed(messages_list)
-        ):  # Reverse because newest first
+        for i, message in enumerate(reversed(messages_list)):  # Reverse because newest first
             assert message.text == f"Concurrent message {i}"
 
         logger.info("Concurrent access simulation test passed")

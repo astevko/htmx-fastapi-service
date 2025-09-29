@@ -2,17 +2,19 @@
 Unit tests for the messages component using PostgreSQL with SQLAlchemy
 """
 
+import os
+import tempfile
+from datetime import datetime, timedelta, timezone
+
 import pytest
-from datetime import datetime, timezone, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-import tempfile
-import os
+
+import messages
 
 # Import the modules we want to test
-from models import Message, MessageDB, Base
-import messages
+from models import Base, Message, MessageDB
 
 
 class TestMessages:
@@ -33,9 +35,7 @@ class TestMessages:
         Base.metadata.create_all(bind=test_engine)
 
         # Create session factory
-        TestSessionLocal = sessionmaker(
-            autocommit=False, autoflush=False, bind=test_engine
-        )
+        TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
         # Patch the database module to use our test database
         monkeypatch.setattr("database.SessionLocal", TestSessionLocal)
@@ -86,9 +86,7 @@ class TestMessages:
         now = datetime.now(timezone.utc)
         # Convert message timestamp to UTC for comparison
         message_time = (
-            message.timestamp.replace(tzinfo=timezone.utc)
-            if message.timestamp.tzinfo is None
-            else message.timestamp
+            message.timestamp.replace(tzinfo=timezone.utc) if message.timestamp.tzinfo is None else message.timestamp
         )
         time_diff = abs((now - message_time).total_seconds())
         assert time_diff < 60  # Should be within 1 minute
@@ -220,9 +218,7 @@ class TestMessages:
         start_time = base_time - timedelta(hours=1)
         end_time = base_time + timedelta(hours=1)
 
-        results = messages.get_messages_by_date_range(
-            start_time.replace(tzinfo=None), end_time.replace(tzinfo=None)
-        )
+        results = messages.get_messages_by_date_range(start_time.replace(tzinfo=None), end_time.replace(tzinfo=None))
 
         assert len(results) == 2
         assert all("range" in result.text.lower() for result in results)

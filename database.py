@@ -2,12 +2,12 @@
 Database configuration and connection management for PostgreSQL
 """
 
-import os
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 import logging
+import os
+
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 logger = logging.getLogger(__name__)
 

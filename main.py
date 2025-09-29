@@ -1,28 +1,30 @@
-from fastapi import FastAPI, Request, Depends, HTTPException, status, Cookie, Form
+import hashlib
+import logging
+import os
+import secrets
+from datetime import datetime, timedelta, timezone
+
+import pytz
+import uvicorn
+from fastapi import Cookie, Depends, FastAPI, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from datetime import datetime, timedelta, timezone
-import pytz
-import uvicorn
-import logging
 from jose import JWTError, jwt
-import secrets
-import os
-import hashlib
+
+from database import init_database, test_connection
+from messages import get_all_messages, store_message
 from models import (
+    LoginErrorResponse,
     LoginRequest,
-    User,
-    UserResponse,
-    TokenData,
+    LoginSuccessResponse,
     Message,
     MessageRequest,
     MessageResponse,
-    LoginSuccessResponse,
-    LoginErrorResponse,
+    TokenData,
+    User,
+    UserResponse,
 )
-from messages import store_message, get_all_messages
-from database import init_database, test_connection
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -92,9 +94,7 @@ def create_access_token(data: TokenData, expires_delta: timedelta = None):
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(
-            minutes=ACCESS_TOKEN_EXPIRE_MINUTES
-        )
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -112,9 +112,7 @@ def authenticate_user(username: str, password: str) -> User | None:
     return None
 
 
-def get_current_user(
-    jwt_token: str = Cookie(None), user_timezone: str = Cookie(None)
-) -> UserResponse:
+def get_current_user(jwt_token: str = Cookie(None), user_timezone: str = Cookie(None)) -> UserResponse:
     """Get current user from JWT token and verify timezone"""
     if not jwt_token:
         raise HTTPException(
@@ -176,9 +174,7 @@ async def home(request: Request):
 
 
 @app.get("/msgs", response_class=HTMLResponse)
-async def messages_page(
-    request: Request, current_user: UserResponse = Depends(get_current_user)
-):
+async def messages_page(request: Request, current_user: UserResponse = Depends(get_current_user)):
     """Messages page - requires authentication"""
     return templates.TemplateResponse("msgs.html", {"request": request})
 
@@ -192,9 +188,7 @@ async def login(
 ):
     """Login endpoint that creates JWT and timezone cookies"""
     # Create LoginRequest from form data for validation
-    login_data = LoginRequest(
-        username=username, password=password, user_timezone=user_timezone
-    )
+    login_data = LoginRequest(username=username, password=password, user_timezone=user_timezone)
 
     user = authenticate_user(login_data.username, login_data.password)
     if not user:
@@ -245,9 +239,7 @@ async def create_message(
     # Create MessageRequest from form data for validation
     message_data = MessageRequest(message=message)
 
-    logger.debug(
-        f"Posting message with timezone: {current_user.timezone} and message: {message_data.message}"
-    )
+    logger.debug(f"Posting message with timezone: {current_user.timezone} and message: {message_data.message}")
     now = datetime.now(timezone.utc)
     formatted_time = format_timestamp(now, current_user.timezone)
 
@@ -266,9 +258,7 @@ async def create_message(
 
 # GET ALL MESSAGES GET ENDPOINT
 @app.get("/api/messages", response_class=HTMLResponse)
-async def get_messages(
-    request: Request, current_user: UserResponse = Depends(get_current_user)
-):
+async def get_messages(request: Request, current_user: UserResponse = Depends(get_current_user)):
     """HTMX endpoint to get all messages - requires authentication"""
     logger.debug(f"Getting messages with timezone: {current_user.timezone}")
     # TODO add pagination
@@ -281,9 +271,7 @@ async def get_messages(
     for message in db_messages:
         formatted_time = format_timestamp(message.timestamp, current_user.timezone)
         messages.append(MessageResponse(text=message.text, timestamp=formatted_time))
-    return templates.TemplateResponse(
-        "messages_list.html", {"request": request, "messages": messages}
-    )
+    return templates.TemplateResponse("messages_list.html", {"request": request, "messages": messages})
 
 
 @app.get("/api/logout", response_class=HTMLResponse)

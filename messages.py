@@ -2,13 +2,15 @@
 Message storage and retrieval using PostgreSQL with SQLAlchemy
 """
 
+import logging
 from datetime import datetime, timezone
 from typing import List
+
+from sqlalchemy import asc, desc
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, asc
+
 from database import SessionLocal
 from models import Message, MessageDB
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -39,14 +41,10 @@ def get_all_messages(descending: bool = True) -> List[Message]:
     try:
         order_func = desc if descending else asc
 
-        db_messages = (
-            db.query(MessageDB).order_by(order_func(MessageDB.timestamp)).all()
-        )
+        db_messages = db.query(MessageDB).order_by(order_func(MessageDB.timestamp)).all()
 
         # Convert SQLAlchemy objects to Pydantic Message objects
-        messages = [
-            Message(text=msg.text, timestamp=msg.timestamp) for msg in db_messages
-        ]
+        messages = [Message(text=msg.text, timestamp=msg.timestamp) for msg in db_messages]
 
         logger.debug(f"Retrieved {len(messages)} messages")
         return messages
@@ -71,9 +69,7 @@ def get_message_count() -> int:
         db.close()
 
 
-def get_messages_by_date_range(
-    start_date: datetime, end_date: datetime
-) -> List[Message]:
+def get_messages_by_date_range(start_date: datetime, end_date: datetime) -> List[Message]:
     """Get messages within a date range"""
     db = SessionLocal()
     try:
@@ -84,9 +80,7 @@ def get_messages_by_date_range(
             .all()
         )
 
-        messages = [
-            Message(text=msg.text, timestamp=msg.timestamp) for msg in db_messages
-        ]
+        messages = [Message(text=msg.text, timestamp=msg.timestamp) for msg in db_messages]
         return messages
 
     except Exception as e:
@@ -107,9 +101,7 @@ def search_messages(search_term: str) -> List[Message]:
             .all()
         )
 
-        messages = [
-            Message(text=msg.text, timestamp=msg.timestamp) for msg in db_messages
-        ]
+        messages = [Message(text=msg.text, timestamp=msg.timestamp) for msg in db_messages]
         return messages
 
     except Exception as e:
