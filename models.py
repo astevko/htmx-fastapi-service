@@ -7,13 +7,17 @@ from database import Base
 
 class LoginRequest(BaseModel):
     """Login request model"""
+
     username: str = Field(..., min_length=1, max_length=50, description="Username")
     password: str = Field(..., min_length=1, max_length=100, description="Password")
-    user_timezone: str = Field(..., min_length=1, max_length=50, description="User timezone")
+    user_timezone: str = Field(
+        ..., min_length=1, max_length=50, description="User timezone"
+    )
 
 
 class User(BaseModel):
     """User model"""
+
     username: str
     password: str
     timezone: Optional[str] = None
@@ -21,35 +25,43 @@ class User(BaseModel):
 
 class UserResponse(BaseModel):
     """User response model (without password)"""
+
     username: str
     timezone: str
 
 
 class TokenData(BaseModel):
     """JWT token data model"""
+
     sub: Optional[str] = None
     timezone: Optional[str] = None
 
 
 class Message(BaseModel):
     """Message model"""
+
     text: str
     timestamp: datetime
 
 
 class MessageRequest(BaseModel):
     """Message creation request model"""
-    message: str = Field(..., min_length=1, max_length=500, description="Message content")
+
+    message: str = Field(
+        ..., min_length=1, max_length=500, description="Message content"
+    )
 
 
 class MessageResponse(BaseModel):
     """Message response model"""
+
     text: str
     timestamp: str
 
 
 class LoginSuccessResponse(BaseModel):
     """Login success response model"""
+
     username: str
     message: str = "Login successful!"
     redirect_url: str = "/msgs"
@@ -57,6 +69,7 @@ class LoginSuccessResponse(BaseModel):
 
 class LoginErrorResponse(BaseModel):
     """Login error response model"""
+
     error: str
     message: str = "Login failed"
 
@@ -64,8 +77,9 @@ class LoginErrorResponse(BaseModel):
 # SQLAlchemy Models
 class MessageDB(Base):
     """SQLAlchemy model for messages table"""
+
     __tablename__ = "messages"
-    
-    id = Column(Integer, Sequence('id_sequence'), primary_key=True, index=True)
+
+    id = Column(Integer, Sequence("id_sequence"), primary_key=True, index=True)
     text = Column(String, nullable=False)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)

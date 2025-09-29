@@ -2,7 +2,7 @@
 Message storage and retrieval using PostgreSQL with SQLAlchemy
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc
@@ -18,13 +18,13 @@ def store_message(text: str, timestamp: datetime = None) -> None:
     db = SessionLocal()
     try:
         if timestamp is None:
-            timestamp = datetime.utcnow()
-        
+            timestamp = datetime.now(timezone.utc)
+
         message = MessageDB(text=text, timestamp=timestamp)
         db.add(message)
         db.commit()
         logger.debug(f"Stored message: {text[:50]}...")
-        
+
     except Exception as e:
         db.rollback()
         logger.error(f"Failed to store message: {e}")
@@ -38,15 +38,19 @@ def get_all_messages(descending: bool = True) -> List[Message]:
     db = SessionLocal()
     try:
         order_func = desc if descending else asc
-        
-        db_messages = db.query(MessageDB).order_by(order_func(MessageDB.timestamp)).all()
-        
+
+        db_messages = (
+            db.query(MessageDB).order_by(order_func(MessageDB.timestamp)).all()
+        )
+
         # Convert SQLAlchemy objects to Pydantic Message objects
-        messages = [Message(text=msg.text, timestamp=msg.timestamp) for msg in db_messages]
-        
+        messages = [
+            Message(text=msg.text, timestamp=msg.timestamp) for msg in db_messages
+        ]
+
         logger.debug(f"Retrieved {len(messages)} messages")
         return messages
-        
+
     except Exception as e:
         logger.error(f"Failed to retrieve messages: {e}")
         raise
@@ -67,18 +71,24 @@ def get_message_count() -> int:
         db.close()
 
 
-def get_messages_by_date_range(start_date: datetime, end_date: datetime) -> List[Message]:
+def get_messages_by_date_range(
+    start_date: datetime, end_date: datetime
+) -> List[Message]:
     """Get messages within a date range"""
     db = SessionLocal()
     try:
-        db_messages = db.query(MessageDB).filter(
-            MessageDB.timestamp >= start_date,
-            MessageDB.timestamp <= end_date
-        ).order_by(desc(MessageDB.timestamp)).all()
-        
-        messages = [Message(text=msg.text, timestamp=msg.timestamp) for msg in db_messages]
+        db_messages = (
+            db.query(MessageDB)
+            .filter(MessageDB.timestamp >= start_date, MessageDB.timestamp <= end_date)
+            .order_by(desc(MessageDB.timestamp))
+            .all()
+        )
+
+        messages = [
+            Message(text=msg.text, timestamp=msg.timestamp) for msg in db_messages
+        ]
         return messages
-        
+
     except Exception as e:
         logger.error(f"Failed to get messages by date range: {e}")
         raise
@@ -90,13 +100,18 @@ def search_messages(search_term: str) -> List[Message]:
     """Search messages by text content"""
     db = SessionLocal()
     try:
-        db_messages = db.query(MessageDB).filter(
-            MessageDB.text.ilike(f"%{search_term}%")
-        ).order_by(desc(MessageDB.timestamp)).all()
-        
-        messages = [Message(text=msg.text, timestamp=msg.timestamp) for msg in db_messages]
+        db_messages = (
+            db.query(MessageDB)
+            .filter(MessageDB.text.ilike(f"%{search_term}%"))
+            .order_by(desc(MessageDB.timestamp))
+            .all()
+        )
+
+        messages = [
+            Message(text=msg.text, timestamp=msg.timestamp) for msg in db_messages
+        ]
         return messages
-        
+
     except Exception as e:
         logger.error(f"Failed to search messages: {e}")
         raise

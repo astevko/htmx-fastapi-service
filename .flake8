@@ -1,0 +1,91 @@
+[flake8]
+# Only lint files in the current project directory
+exclude = 
+    .git,
+    __pycache__,
+    .pytest_cache,
+    .venv,
+    venv,
+    env,
+    .env,
+    node_modules,
+    .mypy_cache,
+    .coverage,
+    htmlcov,
+    dist,
+    build,
+    *.egg-info,
+    .tox,
+    .nox,
+    .ruff_cache,
+    .black,
+    .isort
+
+# Maximum line length (matches black configuration)
+max-line-length = 120
+
+# Maximum complexity for functions
+max-complexity = 10
+
+# Ignore specific error codes
+ignore = 
+    # E203: whitespace before ':' (conflicts with black)
+    E203,
+    # W503: line break before binary operator (conflicts with black)
+    W503,
+    # E501: line too long (handled by black)
+    E501,
+    # F401: imported but unused (sometimes needed for type hints)
+    F401,
+    # F403: star import used (sometimes needed for __all__)
+    F403,
+    # F405: name may be undefined (from star imports)
+    F405,
+    # trailing whitespace is not a sin
+    W291
+
+# Per-file ignores
+per-file-ignores =
+    # Allow unused imports in __init__.py files
+    __init__.py:F401
+    # Allow star imports and unused imports in test files
+    test_*.py:F403,F405,F401,E501,C901,T000
+
+# Select specific checks to run
+select = 
+    E,  # pycodestyle errors
+    W,  # pycodestyle warnings
+    F,  # pyflakes
+    C,  # mccabe complexity
+    B,  # flake8-bugbear
+    N,  # pep8-naming
+
+# Show source code for each error
+show-source = True
+
+# Show statistics
+statistics = True
+
+# Count total errors
+count = True
+
+# Application import names (for import sorting)
+application-import-names = 
+    main,
+    models,
+    database,
+    messages,
+    test_database,
+    test_messages
+
+# Maximum number of blank lines
+max-blank-lines = 2
+
+# Maximum number of consecutive blank lines
+max-doc-length = 120
+
+# Require docstrings
+docstring-convention = google
+
+# Check for TODO comments
+enable-extensions = T

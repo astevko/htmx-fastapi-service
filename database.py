@@ -4,7 +4,7 @@ Database configuration and connection management for PostgreSQL
 
 import os
 from sqlalchemy import create_engine, text
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 import logging
@@ -12,14 +12,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Database URL from environment variable - force psycopg3 driver
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://htmx_user:htmx_password@localhost:5432/htmx_db")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+psycopg://htmx_user:htmx_password@localhost:5432/htmx_db",
+)
 
 # Create SQLAlchemy engine
 engine = create_engine(
     DATABASE_URL,
     poolclass=StaticPool,
     pool_pre_ping=True,
-    echo=False  # Set to True for SQL debugging
+    echo=False,  # Set to True for SQL debugging
 )
 
 # Create session factory
@@ -47,11 +50,11 @@ def check_driver():
                 result = conn.execute(text("SELECT version()"))
                 version = result.fetchone()[0]
                 logger.info(f"PostgreSQL version: {version}")
-                
+
                 # Check the actual driver being used
                 driver_name = engine.dialect.driver
                 logger.info(f"SQLAlchemy driver: {driver_name}")
-                
+
                 return driver_name
             else:
                 # SQLite for testing
@@ -70,11 +73,11 @@ def init_database():
         driver = check_driver()
         if driver:
             logger.info(f"Using database driver: {driver}")
-        
+
         # Create all tables
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables created successfully")
-        
+
         # Create sequence for auto-incrementing IDs if using PostgreSQL
         if "postgresql" in DATABASE_URL:
             with engine.connect() as conn:
@@ -84,7 +87,7 @@ def init_database():
         else:
             # SQLite uses AUTOINCREMENT automatically
             logger.info("Using SQLite autoincrement (no sequence needed)")
-            
+
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         raise
@@ -94,11 +97,8 @@ def test_connection():
     """Test database connection"""
     try:
         with engine.connect() as conn:
-            if "postgresql" in DATABASE_URL:
-                result = conn.execute(text("SELECT 1"))
-            else:
-                # SQLite test
-                result = conn.execute(text("SELECT 1"))
+            # Test connection with a simple query (works for both PostgreSQL and SQLite)
+            conn.execute(text("SELECT 1"))
             logger.info("Database connection test successful")
             return True
     except Exception as e:
