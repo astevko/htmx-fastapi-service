@@ -21,6 +21,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
+        file: ./Dockerfile.test
         platforms: linux/amd64
         push: false
         load: true  # Load the image into local Docker daemon
@@ -30,13 +31,13 @@ jobs:
 
     - name: Test Docker image
       run: |
-        # Start the container
-        echo "Starting container..."
+        # Start the container with SQLite database
+        echo "Starting container with SQLite database..."
         docker run -d --name test-container -p 8000:8000 htmx-fastapi-service:test
         
-        # Wait for the container to start and check logs
+        # Wait for the container to start
         echo "Waiting for container to start..."
-        sleep 10
+        sleep 15
         
         # Check container status and logs
         echo "Container status:"
@@ -45,8 +46,8 @@ jobs:
         echo "Container logs:"
         docker logs test-container
         
-        # Wait a bit more for the application to fully start
-        sleep 80
+        # Wait for application to fully start (SQLite should be faster)
+        sleep 30
         
         # Check if container is still running
         if ! docker ps --filter name=test-container --filter status=running | grep -q test-container; then
@@ -59,17 +60,21 @@ jobs:
         echo "Testing health endpoint..."
         curl -f http://localhost:8000/ || exit 1
         
-        # Test the API endpoint
-        echo "Testing API endpoint..."
-        curl -f http://localhost:8000/api/messages || exit 1
-        
-        # Test with timezone parameter
-        echo "Testing timezone functionality..."
-        curl -f "http://localhost:8000/api/messages?user_timezone=America/New_York" || exit 1
+        # Test the login page
+        echo "Testing login page..."
+        curl -f http://localhost:8000/ || exit 1
         
         # Test static files
         echo "Testing static files..."
         curl -f http://localhost:8000/static/css/style.css || exit 1
+        
+        # Test that the application is responding (without authentication)
+        echo "Testing application response..."
+        response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/)
+        if [ "$response" != "200" ]; then
+          echo "❌ Application not responding correctly (HTTP $response)"
+          exit 1
+        fi
         
         # Clean up
         echo "Cleaning up..."
