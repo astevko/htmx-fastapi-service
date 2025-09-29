@@ -1,5 +1,9 @@
 """
-Message storage and retrieval using PostgreSQL with SQLAlchemy
+HTMX-FastAPI Service - Message Operations
+
+Author: Andrew Stevko
+Company: Stevko Cyber Services
+License: GPL-3.0 (see LICENSE file for details)
 """
 
 import logging

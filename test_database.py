@@ -1,5 +1,9 @@
 """
-Comprehensive tests for database functionality with psycopg3
+HTMX-FastAPI Service - Database Tests
+
+Author: Andrew Stevko
+Company: Stevko Cyber Services
+License: GPL-3.0 (see LICENSE file for details)
 """
 
 import logging

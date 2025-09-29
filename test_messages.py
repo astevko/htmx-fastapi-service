@@ -1,5 +1,9 @@
 """
-Unit tests for the messages component using PostgreSQL with SQLAlchemy
+HTMX-FastAPI Service - Message Tests
+
+Author: Andrew Stevko
+Company: Stevko Cyber Services
+License: GPL-3.0 (see LICENSE file for details)
 """
 
 import os

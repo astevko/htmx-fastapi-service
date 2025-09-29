@@ -1,3 +1,11 @@
+"""
+HTMX-FastAPI Service - Data Models
+
+Author: Andrew Stevko
+Company: Stevko Cyber Services
+License: GPL-3.0 (see LICENSE file for details)
+"""
+
 from datetime import datetime
 from typing import Optional
 

@@ -1,5 +1,9 @@
 """
-Database configuration and connection management for PostgreSQL
+HTMX-FastAPI Service - Database Configuration
+
+Author: Andrew Stevko
+Company: Stevko Cyber Services
+License: GPL-3.0 (see LICENSE file for details)
 """
 
 import logging
