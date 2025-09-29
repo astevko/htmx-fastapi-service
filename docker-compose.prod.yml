@@ -7,6 +7,9 @@ services:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=postgresql+psycopg://htmx_user:htmx_password@postgres:5432/htmx_db
+      - SECRET_KEY=${SECRET_KEY}
+      - DEMO_USERNAME=${DEMO_USERNAME}
+      - DEMO_PASSWORD=${DEMO_PASSWORD}
     expose:
       - "8000" # Expose port internally for nginx
     depends_on:

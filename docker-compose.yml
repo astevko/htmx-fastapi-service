@@ -6,6 +6,9 @@ services:
     environment:
       - PYTHONPATH=/app
       - DATABASE_URL=postgresql+psycopg://htmx_user:htmx_password@postgres:5432/htmx_db
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - DEMO_USERNAME=${DEMO_USERNAME:-user@example.com}
+      - DEMO_PASSWORD=${DEMO_PASSWORD:-12341234}
     volumes:
       # Mount source code for development (comment out for production)
       - .:/app

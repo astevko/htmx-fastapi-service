@@ -52,7 +52,7 @@ def check_driver():
             # Check the actual driver being used
             driver_name = engine.dialect.driver
             logger.info(f"SQLAlchemy driver: {driver_name}")
-            
+
             # Check database type by trying PostgreSQL version first, fallback to SQLite
             try:
                 result = conn.execute(text("SELECT version()"))
@@ -66,7 +66,7 @@ def check_driver():
                     logger.info(f"SQLite version: {version}")
                 except Exception as sqlite_error:
                     logger.warning(f"Could not determine database version: {sqlite_error}")
-            
+
             return driver_name
     except Exception as e:
         logger.error(f"Failed to check driver: {e}")

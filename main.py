@@ -1,7 +1,7 @@
 """
 HTMX-FastAPI Service
 
-A modern web application built with FastAPI and HTMX, demonstrating 
+A modern web application built with FastAPI and HTMX, demonstrating
 server-side rendering with dynamic interactions.
 
 Author: Andrew Stevko
@@ -31,6 +31,7 @@ import os
 import secrets
 from datetime import datetime, timedelta, timezone
 
+import bcrypt
 import pytz
 import uvicorn
 from fastapi import Cookie, Depends, FastAPI, Form, HTTPException, Request, status
@@ -38,6 +39,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from jose import JWTError, jwt
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
 
 from database import init_database, test_connection
 from messages import get_all_messages, store_message
@@ -53,29 +56,55 @@ from models import (
     UserResponse,
 )
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)  # Changed from DEBUG for security
 logger = logging.getLogger(__name__)
 
+# Security logger for authentication events
+security_logger = logging.getLogger("security")
+
+# Rate limiting
+limiter = Limiter(key_func=get_remote_address)
+
 # JWT Configuration
-SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY environment variable must be set in production")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
-# TODO improve Simple password hashing for demo (use proper hashing in production)
 def hash_password(password: str) -> str:
-    """Simple password hashing for demo purposes"""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Secure password hashing with bcrypt"""
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
+    return hashed.decode("utf-8")
 
 
-# Demo user credentials (in production, use a proper database)
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify password against bcrypt hash"""
+    try:
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    except Exception:
+        return False
+
+
+# User credentials from environment variables
+DEMO_USERNAME = os.getenv("DEMO_USERNAME", "user@example.com")
+DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "12341234")
+
+# Create demo user with hashed password (hash once during startup)
 DEMO_USER = User(
-    username="user@example.com",
-    password=hash_password("12341234"),
+    username=DEMO_USERNAME,
+    password=hash_password(DEMO_PASSWORD),
     timezone=None,  # Will be set during login
 )
 
 app = FastAPI(title="HTMX FastAPI Service", version="0.1.0")
+
+# Add rate limiter to app
+app.state.limiter = limiter
+app.add_exception_handler(429, _rate_limit_exceeded_handler)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -125,11 +154,6 @@ def create_access_token(data: TokenData, expires_delta: timedelta = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
-
-
-def verify_password(plain_password, hashed_password):
-    """Verify a password against its hash"""
-    return hash_password(plain_password) == hashed_password
 
 
 def authenticate_user(username: str, password: str) -> User | None:
@@ -207,6 +231,7 @@ async def messages_page(request: Request, current_user: UserResponse = Depends(g
 
 
 @app.post("/api/login", response_class=HTMLResponse)
+@limiter.limit("5/minute")  # Rate limit login attempts
 async def login(
     request: Request,
     username: str = Form(...),
@@ -219,10 +244,15 @@ async def login(
 
     user = authenticate_user(login_data.username, login_data.password)
     if not user:
+        # Log failed login attempt
+        security_logger.warning(f"Failed login attempt for username: {login_data.username}")
         return templates.TemplateResponse(
             "login_error.html",
             {"request": request, "error": "Invalid username or password"},
         )
+
+    # Log successful login
+    security_logger.info(f"Successful login for user: {login_data.username}")
 
     # Create JWT token with timezone
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -233,23 +263,24 @@ async def login(
     response = HTMLResponse(content="<div>Login successful! Redirecting...</div>")
     response.headers["HX-Redirect"] = "/msgs"
 
-    # Set JWT cookie (session-based)
+    # Set JWT cookie (session-based) - SECURE SETTINGS
     response.set_cookie(
         key="jwt_token",
         value=access_token,
         httponly=True,
-        secure=False,  # Set to True in production with HTTPS
-        samesite="lax",
+        secure=True,  # Always True for production
+        samesite="strict",  # Stricter than "lax"
+        max_age=1800,  # 30 minutes
     )
 
-    # Set timezone cookie (persistent for 1 year)
+    # Set timezone cookie (persistent for 1 year) - SECURE SETTINGS
     response.set_cookie(
         key="user_timezone",
         value=login_data.user_timezone,
         max_age=365 * 24 * 60 * 60,  # 1 year
-        httponly=False,  # Allow JavaScript access for HTMX
-        secure=False,  # Set to True in production with HTTPS
-        samesite="lax",
+        httponly=True,  # Secure - no JavaScript access
+        secure=True,  # Always True for production
+        samesite="strict",  # Stricter than "lax"
     )
 
     return response
