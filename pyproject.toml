@@ -5,28 +5,28 @@ description = "A FastAPI service with HTMX integration for modern web applicatio
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "fastapi>=0.117.1",
-    "jinja2>=3.1.6",
-    "python-dateutil>=2.9.0.post0",
-    "python-multipart>=0.0.20",
-    "pytz>=2025.2",
-    "uvicorn>=0.37.0",
-    "python-jose[cryptography]>=3.3.0",
-    "pydantic>=2.0.0",
-    "psycopg[binary]>=3.2.10",
-    "sqlalchemy>=2.0.0",
-    "alembic>=1.12.0",
-    "bcrypt>=4.0.1",
-    "slowapi>=0.1.9",
+    "fastapi>=0.117.1,<0.118.0",
+    "jinja2>=3.1.6,<3.2.0",
+    "python-dateutil>=2.9.0.post0,<3.0.0",
+    "python-multipart>=0.0.20,<0.1.0",
+    "pytz>=2025.2,<2026.0",
+    "uvicorn>=0.37.0,<0.38.0",
+    "python-jose[cryptography]>=3.3.0,<4.0.0",
+    "pydantic>=2.1.0,<3.0.0",
+    "psycopg[binary]>=3.2.10,<4.0.0",
+    "sqlalchemy>=2.0.0,<3.0.0",
+    "alembic>=1.12.0,<2.0.0",
+    "bcrypt>=5.0.0,<6.0.0",
+    "slowapi>=0.1.9,<0.2.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
-    "black>=23.0.0",
-    "isort>=5.12.0",
-    "flake8>=6.0.0",
+    "pytest==8.4.2",
+    "pytest-asyncio==1.2.0",
+    "black==25.9.0",
+    "isort==6.0.1",
+    "flake8==7.3.0",
 ]
 
 [build-system]
@@ -46,10 +46,10 @@ line_length = 120
 
 [dependency-groups]
 dev = [
-    "black>=25.9.0",
-    "flake8>=7.3.0",
-    "httpx>=0.28.1",
-    "isort>=6.0.1",
-    "pytest>=8.4.2",
-    "pytest-asyncio>=1.2.0",
+    "black==25.9.0",
+    "flake8==7.3.0",
+    "httpx==0.28.1",
+    "isort==6.0.1",
+    "pytest==8.4.2",
+    "pytest-asyncio==1.2.0",
 ]

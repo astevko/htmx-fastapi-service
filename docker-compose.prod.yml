@@ -4,10 +4,12 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
+      # TODO: use secrets for production
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=postgresql+psycopg://htmx_user:htmx_password@postgres:5432/htmx_db
       - SECRET_KEY=${SECRET_KEY}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - DEMO_USERNAME=${DEMO_USERNAME}
       - DEMO_PASSWORD=${DEMO_PASSWORD}
     expose:

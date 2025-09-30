@@ -7,7 +7,7 @@ License: GPL-3.0 (see LICENSE file for details)
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Enum
 
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, DateTime, Integer, Sequence, String

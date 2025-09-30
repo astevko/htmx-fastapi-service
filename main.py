@@ -38,6 +38,8 @@ from fastapi import Cookie, Depends, FastAPI, Form, HTTPException, Request, stat
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -65,13 +67,21 @@ security_logger = logging.getLogger("security")
 # Rate limiting
 limiter = Limiter(key_func=get_remote_address)
 
-# JWT Configuration
+# JWT Configuration with refresh token
 SECRET_KEY = os.getenv("SECRET_KEY")
+JWT_REFRESH_SECRET = os.getenv("JWT_REFRESH_SECRET")
+
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY environment variable must be set in production")
 
+# Generate refresh secret if not provided
+if not JWT_REFRESH_SECRET:
+    JWT_REFRESH_SECRET = secrets.token_urlsafe(32)
+    logger.warning("JWT_REFRESH_SECRET not set, using generated key. Set this in production!")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 
 def hash_password(password: str) -> str:
@@ -102,9 +112,54 @@ DEMO_USER = User(
 
 app = FastAPI(title="HTMX FastAPI Service", version="0.1.0")
 
+# Add security middleware
+app.add_middleware(
+    TrustedHostMiddleware, 
+    allowed_hosts=["*"]  # Configure with specific domains in production
+)
+
+# Add CORS middleware with restrictive settings
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure with specific origins in production
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
 # Add rate limiter to app
 app.state.limiter = limiter
 app.add_exception_handler(429, _rate_limit_exceeded_handler)
+
+# Security headers middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Add comprehensive security headers to all responses"""
+    response = await call_next(request)
+    
+    # Content Security Policy
+    csp = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "img-src 'self' data:; "
+        "font-src 'self' https://cdn.jsdelivr.net; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+    
+    # Security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = csp
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    
+    return response
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -151,9 +206,37 @@ def create_access_token(data: TokenData, expires_delta: timedelta = None):
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+def create_refresh_token(data: TokenData, expires_delta: timedelta = None):
+    """Create a JWT refresh token"""
+    to_encode = data.model_dump()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    encoded_jwt = jwt.encode(to_encode, JWT_REFRESH_SECRET, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
+def verify_token(token: str, token_type: str = "access") -> TokenData | None:
+    """Verify JWT token and return TokenData"""
+    try:
+        secret = SECRET_KEY if token_type == "access" else JWT_REFRESH_SECRET
+        payload = jwt.decode(token, secret, algorithms=[ALGORITHM])
+        
+        # Verify token type
+        if payload.get("type") != token_type:
+            return None
+            
+        token_data = TokenData(**payload)
+        return token_data
+    except JWTError:
+        return None
 
 
 def authenticate_user(username: str, password: str) -> User | None:
@@ -172,33 +255,24 @@ def get_current_user(jwt_token: str = Cookie(None), user_timezone: str = Cookie(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    try:
-        payload = jwt.decode(jwt_token, SECRET_KEY, algorithms=[ALGORITHM])
-        token_data = TokenData(**payload)
-
-        if token_data.sub is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        # Verify timezone matches
-        if token_data.timezone != user_timezone:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Timezone mismatch",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        return UserResponse(username=token_data.sub, timezone=token_data.timezone)
-
-    except JWTError:
+    # Verify access token
+    token_data = verify_token(jwt_token, "access")
+    if not token_data or token_data.sub is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Verify timezone matches
+    if token_data.timezone != user_timezone:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Timezone mismatch",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return UserResponse(username=token_data.sub, timezone=token_data.timezone)
 
 
 def format_timestamp(dt: datetime, timezone_str: str = "UTC") -> str:
@@ -254,16 +328,19 @@ async def login(
     # Log successful login
     security_logger.info(f"Successful login for user: {login_data.username}")
 
-    # Create JWT token with timezone
+    # Create JWT tokens with timezone
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     token_data = TokenData(sub=user.username, timezone=login_data.user_timezone)
+    
     access_token = create_access_token(token_data, expires_delta=access_token_expires)
+    refresh_token = create_refresh_token(token_data, expires_delta=refresh_token_expires)
 
     # Create response with HTMX redirect header
     response = HTMLResponse(content="<div>Login successful! Redirecting...</div>")
     response.headers["HX-Redirect"] = "/msgs"
 
-    # Set JWT cookie (session-based) - SECURE SETTINGS
+    # Set JWT cookies (session-based) - SECURE SETTINGS
     response.set_cookie(
         key="jwt_token",
         value=access_token,
@@ -271,6 +348,16 @@ async def login(
         secure=True,  # Always True for production
         samesite="strict",  # Stricter than "lax"
         max_age=1800,  # 30 minutes
+    )
+
+    # Set refresh token cookie (longer expiration)
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=604800,  # 7 days
     )
 
     # Set timezone cookie (persistent for 1 year) - SECURE SETTINGS
@@ -332,11 +419,46 @@ async def get_messages(request: Request, current_user: UserResponse = Depends(ge
     return templates.TemplateResponse("messages_list.html", {"request": request, "messages": messages})
 
 
+@app.post("/api/refresh", response_class=HTMLResponse)
+async def refresh_token(refresh_token: str = Cookie(None)):
+    """Refresh access token using refresh token"""
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No refresh token provided"
+        )
+    
+    # Verify refresh token
+    token_data = verify_token(refresh_token, "refresh")
+    if not token_data or token_data.sub is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token"
+        )
+    
+    # Create new access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    new_access_token = create_access_token(token_data, expires_delta=access_token_expires)
+    
+    response = HTMLResponse(content="<div>Token refreshed</div>")
+    response.set_cookie(
+        key="jwt_token",
+        value=new_access_token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=1800,  # 30 minutes
+    )
+    
+    return response
+
+
 @app.get("/api/logout", response_class=HTMLResponse)
 async def logout():
     """Logout endpoint that clears cookies and redirects"""
     response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     response.delete_cookie("jwt_token")
+    response.delete_cookie("refresh_token")
     response.delete_cookie("user_timezone")
     return response
 
